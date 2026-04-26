@@ -1,4 +1,6 @@
 import { supabase } from '@/lib/supabase'
+import Image from 'next/image'
+import Link from 'next/link'
 
 export default async function Equipes() {
   const { data: teams, error } = await supabase
@@ -21,13 +23,26 @@ export default async function Equipes() {
       {/* Grille d'équipes */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {teams?.map((team) => (
-          <div
+          <Link
             key={team.id}
-            className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:shadow-md transition-shadow flex items-center gap-4"
+            href={`/equipes/${team.id}`}
+            className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:shadow-md hover:border-blue-300 transition-all flex items-center gap-4"
           >
-            {/* Initiales de l'équipe */}
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg flex-shrink-0">
-              {team.short_name?.slice(0, 3) ?? team.name.slice(0, 2).toUpperCase()}
+            {/* Logo ou initiales */}
+            <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center">
+              {team.logo_url ? (
+                <Image
+                  src={team.logo_url}
+                  alt={`Logo ${team.name}`}
+                  width={48}
+                  height={48}
+                  className="object-contain"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
+                  {team.short_name?.slice(0, 3) ?? team.name.slice(0, 2).toUpperCase()}
+                </div>
+              )}
             </div>
 
             {/* Nom */}
@@ -37,7 +52,10 @@ export default async function Equipes() {
                 <p className="text-xs text-slate-400 mt-0.5">{team.short_name}</p>
               )}
             </div>
-          </div>
+
+            {/* Flèche */}
+            <span className="ml-auto text-slate-300 text-lg">→</span>
+          </Link>
         ))}
       </div>
     </div>
