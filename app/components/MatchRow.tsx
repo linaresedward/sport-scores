@@ -5,8 +5,19 @@ interface Props {
   match: Match
 }
 
+const LIVE_STATUSES = ['In Progress', 'HT', '1H', '2H', 'ET', 'P', 'LIVE', 'Extra Time']
+
+const PERIOD_LABEL: Record<string, string> = {
+  '1H': '1ère MT',
+  '2H': '2ème MT',
+  'HT': 'Mi-temps',
+  'ET': 'Prol.',
+  'P':  'Tirs au but',
+  'In Progress': 'En cours',
+}
+
 function StatusBadge({ status, time }: { status: string; time?: string }) {
-  const isLive = status === 'In Progress' || status === 'HT'
+  const isLive = LIVE_STATUSES.includes(status)
   const isFinished = status === 'Match Finished'
 
   if (isLive) {
@@ -16,9 +27,9 @@ function StatusBadge({ status, time }: { status: string; time?: string }) {
           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
           LIVE
         </span>
-        {time && (
-          <span className="text-xs text-red-400 font-medium">{time}</span>
-        )}
+        <span className="text-xs text-red-400 font-medium">
+          {PERIOD_LABEL[status] ?? time ?? ''}
+        </span>
       </span>
     )
   }
@@ -28,7 +39,7 @@ function StatusBadge({ status, time }: { status: string; time?: string }) {
 
 export default function MatchRow({ match }: Props) {
   const hasScore = match.intHomeScore !== null && match.intAwayScore !== null
-  const isLive = match.strStatus === 'In Progress' || match.strStatus === 'HT'
+  const isLive = LIVE_STATUSES.includes(match.strStatus)
   const time = match.strTime?.slice(0, 5) ?? ''
 
   return (
