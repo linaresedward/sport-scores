@@ -1,72 +1,176 @@
+// app/page.tsx
 import { supabase } from '@/lib/supabase'
 
-export default async function Home() {
-  const { data: matches, error } = await supabase
-    .from('matches')
-    .select('id, match_date, status, home_score, away_score, home_team_id, away_team_id')
-    .order('match_date', { ascending: false })
+// Types
+type Team = {
+  id: string
+  name: string
+  short_name: string
+  logo_url: string | null
+}
 
-  const { data: teams } = await supabase
-    .from('teams')
-    .select('id, name')
+type Match = {
+  id: string
+  home_team_id: string
+  away_team_id: string
+  home_score: number | null
+  away_score: number | null
+  match_date: string
+  status: string
+  minute: number | null
+  home_team: Team
+  away_team: Team
+}
 
-  if (error) {
-    return <p className="text-red-500">Erreur : {error.message}</p>
+// Composant logo d'équipe
+function TeamLogo({ team }: { team: Team }) {
+  if (team.logo_url) {
+    return (
+      <img
+        src={team.logo_url}
+        alt={team.short_name}
+        width={32}
+        height={32}
+        style={{ borderRadius: '50%', objectFit: 'contain' }}
+      />
+    )
+  }
+  return (
+    <div className="team-logo-placeholder">
+      {team.short_name.slice(0, 3)}
+    </div>
+  )
+}
+
+// Composant score / heure
+function ScoreDisplay({ match }: { match: Match }) {
+  if (match.status === 'live') {
+    return (
+      <div className="score-center">
+        <div className="score-numbers">
+          <span className="score-value">{match.home_score ?? 0}</span>
+          <span className="score-sep">–</span>
+          <span className="score-value">{match.away_score ?? 0}</span>
+        </div>
+        {match.minute && (
+          <span className="score-minute">{match.minute}'</span>
+        )}
+      </div>
+    )
   }
 
-  const getTeamName = (id: string) => teams?.find(t => t.id === id)?.name ?? '?'
-
-  return (
-    <div>
-      {/* En-tête de page */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Résultats</h1>
-        <p className="text-slate-500 text-sm mt-1">Ligue 1 — Saison 2024/2025</p>
+  if (match.status === 'finished') {
+    return (
+      <div className="score-numbers">
+        <span className="score-value">{match.home_score}</span>
+        <span className="score-sep">–</span>
+        <span className="score-value">{match.away_score}</span>
       </div>
+    )
+  }
 
-      {/* Liste des matchs */}
-      <div className="flex flex-col gap-3">
-        {matches?.map((match) => (
-          <div
-            key={match.id}
-            className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center justify-between">
+  // À venir
+  const time = new Date(match.match_date).toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  return <span className="score-tbd">{time}</span>
+}
 
-              {/* Équipe domicile */}
-              <span className="font-semibold w-2/5 text-right text-slate-800">
-                {getTeamName(match.home_team_id)}
-              </span>
+// Badge de statut
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'live') return <span className="badge badge-live">En direct</span>
+  if (status === 'finished') return <span className="badge badge-done">Terminé</span>
+  return <span className="badge badge-soon">À venir</span>
+}
 
-              {/* Score */}
-              <div className="text-center w-1/5">
-                {match.status === 'finished' ? (
-                  <span className="text-xl font-bold bg-slate-100 px-3 py-1 rounded-lg text-slate-800">
-                    {match.home_score} - {match.away_score}
-                  </span>
-                ) : (
-                  <span className="text-xs font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                    À venir
-                  </span>
-                )}
-              </div>
-
-              {/* Équipe extérieure */}
-              <span className="font-semibold w-2/5 text-left text-slate-800">
-                {getTeamName(match.away_team_id)}
-              </span>
-
-            </div>
-
-            {/* Date */}
-            <p className="text-center text-xs text-slate-400 mt-3">
-              {new Date(match.match_date).toLocaleDateString('fr-FR', {
-                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-              })}
-            </p>
-          </div>
-        ))}
+// Carte de match
+function MatchCard({ match }: { match: Match }) {
+  return (
+    <div className={`match-card ${match.status === 'live' ? 'match-card--live' : ''}`}>
+      <div className="match-card__header">
+        <StatusBadge status={match.status} />
+        <span className="match-meta-text">Ligue 1</span>
+      </div>
+      <div className="match-card__body">
+        <div className="team-block">
+          <TeamLogo team={match.home_team} />
+          <span className="team-name">{match.home_team.name}</span>
+        </div>
+        <ScoreDisplay match={match} />
+        <div className="team-block team-block--right">
+          <span className="team-name">{match.away_team.name}</span>
+          <TeamLogo team={match.away_team} />
+        </div>
       </div>
     </div>
+  )
+}
+
+// Page principale
+export default async function HomePage() {
+
+  const { data: matches, error } = await supabase
+    .from('matches')
+    .select(`
+      *,
+      home_team:teams!home_team_id(id, name, short_name, logo_url),
+      away_team:teams!away_team_id(id, name, short_name, logo_url)
+    `)
+    .order('match_date', { ascending: true })
+
+  if (error) {
+    console.error('Erreur Supabase:', error)
+  }
+
+  const allMatches = (matches as Match[]) ?? []
+
+  const liveMatches = allMatches.filter(m => m.status === 'live')
+  const finishedMatches = allMatches.filter(m => m.status === 'finished')
+  const upcomingMatches = allMatches.filter(m => m.status === 'upcoming')
+
+  const today = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
+  return (
+    <main className="home-page">
+      {/* Hero */}
+      <div className="hero-section">
+        <h1 className="hero-title">Résultats du jour</h1>
+        <p className="hero-subtitle">Ligue 1 · {today}</p>
+      </div>
+
+      {/* Contenu */}
+      <div className="matches-container">
+        {allMatches.length === 0 && (
+          <p className="empty-state">Aucun match aujourd'hui.</p>
+        )}
+
+        {liveMatches.length > 0 && (
+          <section>
+            <h2 className="section-label">En direct</h2>
+            {liveMatches.map(m => <MatchCard key={m.id} match={m} />)}
+          </section>
+        )}
+
+        {finishedMatches.length > 0 && (
+          <section>
+            <h2 className="section-label">Terminés</h2>
+            {finishedMatches.map(m => <MatchCard key={m.id} match={m} />)}
+          </section>
+        )}
+
+        {upcomingMatches.length > 0 && (
+          <section>
+            <h2 className="section-label">À venir</h2>
+            {upcomingMatches.map(m => <MatchCard key={m.id} match={m} />)}
+          </section>
+        )}
+      </div>
+    </main>
   )
 }
