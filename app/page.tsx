@@ -1,178 +1,115 @@
-import { supabase } from '@/lib/supabase'
+import {
+  getRecentMatches,
+  getUpcomingMatches,
+  getTodayMatches,
+  getYesterdayMatches,
+  LEAGUE_IDS,
+  ALLOWED_LEAGUES,
+  type Match
+} from '@/lib/sportsdb'
+import LeagueSection from './components/LeagueSection'
 
-type Team = {
-  id: string
-  name: string
-  short_name: string
-  logo_url: string | null
+function groupByLeague(matches: Match[]): Record<string, Match[]> {
+  return matches.reduce((acc, match) => {
+    const key = match.strLeague
+    if (!acc[key]) acc[key] = []
+    acc[key].push(match)
+    return acc
+  }, {} as Record<string, Match[]>)
 }
 
-type Match = {
-  id: string
-  home_team_id: string
-  away_team_id: string
-  home_score: number | null
-  away_score: number | null
-  match_date: string
-  status: string
-  minute: number | null
-  home_team: Team
-  away_team: Team
-}
-
-function TeamLogo({ team }: { team: Team }) {
-  if (team.logo_url) {
-    return (
-      <img
-        src={team.logo_url}
-        alt={team.short_name}
-        width={32}
-        height={32}
-        style={{ borderRadius: '50%', objectFit: 'contain' }}
-      />
-    )
-  }
-  return (
-    <div className="team-logo-placeholder">
-      {team.short_name.slice(0, 3)}
-    </div>
-  )
-}
-
-function ScoreDisplay({ match }: { match: Match }) {
-  if (match.status === 'live') {
-    return (
-      <div className="score-center">
-        <div className="score-numbers">
-          <span className="score-value">{match.home_score ?? 0}</span>
-          <span className="score-sep">–</span>
-          <span className="score-value">{match.away_score ?? 0}</span>
-        </div>
-        {match.minute && (
-          <span className="score-minute">{match.minute}'</span>
-        )}
-      </div>
-    )
-  }
-
-  if (match.status === 'finished') {
-    return (
-      <div className="score-numbers">
-        <span className="score-value">{match.home_score}</span>
-        <span className="score-sep">–</span>
-        <span className="score-value">{match.away_score}</span>
-      </div>
-    )
-  }
-
-  const time = new Date(match.match_date).toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  return <span className="score-tbd">{time}</span>
-}
-
-function StatusBadge({ status }: { status: string }) {
-  if (status === 'live') return <span className="badge badge-live">En direct</span>
-  if (status === 'finished') return <span className="badge badge-done">Terminé</span>
-  return <span className="badge badge-soon">À venir</span>
-}
-
-function LiveDot() {
-  return <span className="live-dot" />
-}
-
-function MatchCard({ match }: { match: Match }) {
-  const homeLeading =
-    match.status === 'live' &&
-    (match.home_score ?? 0) > (match.away_score ?? 0)
-
-  const awayLeading =
-    match.status === 'live' &&
-    (match.away_score ?? 0) > (match.home_score ?? 0)
-
-  return (
-    <div className={`match-card ${match.status === 'live' ? 'match-card--live' : ''}`}>
-      <div className="match-card__header">
-        <StatusBadge status={match.status} />
-        <span className="match-meta-text">Ligue 1</span>
-      </div>
-      <div className="match-card__body">
-        <div className="team-block">
-          <TeamLogo team={match.home_team} />
-          <span className="team-name">{match.home_team.name}</span>
-          {homeLeading && <LiveDot />}
-        </div>
-        <ScoreDisplay match={match} />
-        <div className="team-block team-block--right">
-          {awayLeading && <LiveDot />}
-          <span className="team-name">{match.away_team.name}</span>
-          <TeamLogo team={match.away_team} />
-        </div>
-      </div>
-    </div>
-  )
-}
+const LEAGUE_ORDER = [
+  'French Ligue 1',
+  'English Premier League',
+  'Spanish La Liga',
+  'German Bundesliga',
+  'Italian Serie A',
+  'UEFA Champions League',
+]
 
 export default async function HomePage() {
-  const { data: matches, error } = await supabase
-    .from('matches')
-    .select(`
-      *,
-      home_team:teams!home_team_id(id, name, short_name, logo_url),
-      away_team:teams!away_team_id(id, name, short_name, logo_url)
-    `)
-    .order('match_date', { ascending: true })
+  const [
+    ligue1Past, ligue1Next,
+    plPast, plNext,
+    laLigaPast,
+    bundesligaPast,
+    serieAPast,
+    todayMatches,
+    yesterdayMatches,
+  ] = await Promise.all([
+    getRecentMatches(LEAGUE_IDS.ligue1),
+    getUpcomingMatches(LEAGUE_IDS.ligue1),
+    getRecentMatches(LEAGUE_IDS.premierLeague),
+    getUpcomingMatches(LEAGUE_IDS.premierLeague),
+    getRecentMatches(LEAGUE_IDS.laLiga),
+    getRecentMatches(LEAGUE_IDS.bundesliga),
+    getRecentMatches(LEAGUE_IDS.serieA),
+    getTodayMatches(),
+    getYesterdayMatches(),
+  ])
 
-  if (error) {
-    console.error('Erreur Supabase:', error)
-  }
+  const seen = new Set<string>()
+  const allMatches = [
+    ...todayMatches,
+    ...yesterdayMatches,
+    ...ligue1Past, ...ligue1Next,
+    ...plPast, ...plNext,
+    ...laLigaPast,
+    ...bundesligaPast,
+    ...serieAPast,
+  ]
+  .filter(match => {
+    if (!ALLOWED_LEAGUES.has(match.strLeague)) return false
+    if (seen.has(match.idEvent)) return false
+    seen.add(match.idEvent)
+    return true
+  })
+  .sort((a, b) => new Date(b.dateEvent).getTime() - new Date(a.dateEvent).getTime())
+  .slice(0, 60)
 
-  const allMatches = (matches as Match[]) ?? []
-  const liveMatches = allMatches.filter(m => m.status === 'live')
-  const finishedMatches = allMatches.filter(m => m.status === 'finished')
-  const upcomingMatches = allMatches.filter(m => m.status === 'upcoming')
+  const grouped = groupByLeague(allMatches)
 
-  const today = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+  const sortedEntries = Object.entries(grouped).sort(([a], [b]) => {
+    const ia = LEAGUE_ORDER.indexOf(a)
+    const ib = LEAGUE_ORDER.indexOf(b)
+    if (ia === -1 && ib === -1) return a.localeCompare(b)
+    if (ia === -1) return 1
+    if (ib === -1) return -1
+    return ia - ib
   })
 
   return (
-    <main className="home-page">
-      <div className="hero-section">
-        <h1 className="hero-title">Résultats du jour</h1>
-        <p className="hero-subtitle">Ligue 1 · {today}</p>
+    <main className="max-w-2xl mx-auto px-4 py-6">
+      <div className="flex items-center gap-2 mb-6">
+        {['Hier', "Aujourd'hui", 'Demain'].map((label, i) => (
+          <button
+            key={label}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              i === 1
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      <div className="matches-container">
-        {allMatches.length === 0 && (
-          <p className="empty-state">Aucun match aujourd'hui.</p>
-        )}
-
-        {liveMatches.length > 0 && (
-          <section>
-            <h2 className="section-label">En direct</h2>
-            {liveMatches.map(m => <MatchCard key={m.id} match={m} />)}
-          </section>
-        )}
-
-        {finishedMatches.length > 0 && (
-          <section>
-            <h2 className="section-label">Terminés</h2>
-            {finishedMatches.map(m => <MatchCard key={m.id} match={m} />)}
-          </section>
-        )}
-
-        {upcomingMatches.length > 0 && (
-          <section>
-            <h2 className="section-label">À venir</h2>
-            {upcomingMatches.map(m => <MatchCard key={m.id} match={m} />)}
-          </section>
-        )}
-      </div>
+      {sortedEntries.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-4xl mb-4">⚽</p>
+          <p className="text-gray-400">Aucun match trouvé</p>
+          <p className="text-gray-600 text-sm mt-2">Essayez "Hier" pour voir les derniers résultats</p>
+        </div>
+      ) : (
+        sortedEntries.map(([leagueName, matches]) => (
+          <LeagueSection
+            key={leagueName}
+            leagueName={leagueName}
+            matches={matches}
+          />
+        ))
+      )}
     </main>
   )
 }

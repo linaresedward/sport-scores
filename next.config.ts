@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'unanxgqdzhcztpahgnxg.supabase.co',
       },
+      {
+        protocol: 'https',
+        hostname: '**.thesportsdb.com',  // ← cette ligne doit être présente
+      },
     ],
   },
 }
