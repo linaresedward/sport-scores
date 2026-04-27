@@ -412,3 +412,143 @@ html, body {
   border-radius: 2px;
   flex-shrink: 0;
 }
+/* ===== PAGE ÉQUIPES ===== */
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.team-card {
+  position: relative;
+  background: white;
+  border: 1px solid #e8e8e6;
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.team-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  transform: translateY(-1px);
+}
+
+.team-card__zone-bar {
+  height: 4px;
+  width: 100%;
+}
+
+.team-card__body {
+  padding: 1rem 1.25rem;
+  flex: 1;
+}
+
+.team-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.625rem;
+}
+
+.team-card__logo {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-card__logo-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f0f0ee;
+  border: 1px solid #e8e8e6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #888;
+}
+
+.team-card__identity {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.team-card__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+.team-card__short {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.team-card__rank {
+  font-size: 1.125rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.team-card__zone-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.75rem;
+}
+
+.team-card__stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f0f0ee;
+}
+
+.team-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.team-stat__value {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.team-stat__label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #bbb;
+  text-transform: uppercase;
+}
+
+.team-card__arrow {
+  position: absolute;
+  bottom: 1rem;
+  right: 1.25rem;
+  font-size: 0.875rem;
+  color: #ccc;
+}
+
+.team-card__no-stats {
+  font-size: 0.75rem;
+  color: #bbb;
+  padding-top: 0.5rem;
+}
