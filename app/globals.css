@@ -201,3 +201,85 @@ html, body {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.3; transform: scale(0.7); }
 }
+/* ===== LOADING SKELETON ===== */
+.skeleton {
+  background: #e8e8e6;
+  border-radius: 6px;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.skeleton--title {
+  height: 28px;
+  width: 200px;
+  margin-bottom: 8px;
+}
+
+.skeleton--subtitle {
+  height: 16px;
+  width: 260px;
+}
+
+.skeleton--label {
+  height: 12px;
+  width: 80px;
+  margin-bottom: 8px;
+}
+
+.skeleton--badge {
+  height: 22px;
+  width: 70px;
+  border-radius: 6px;
+}
+
+.skeleton--logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton--name {
+  height: 14px;
+  width: 120px;
+  border-radius: 4px;
+}
+
+.skeleton--score {
+  height: 28px;
+  width: 60px;
+  border-radius: 4px;
+}
+
+.skeleton-card {
+  background: white;
+  border: 1px solid #e8e8e6;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.625rem;
+}
+
+.skeleton-card__header {
+  margin-bottom: 0.75rem;
+}
+
+.skeleton-card__body {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.skeleton-team {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.skeleton-team--right {
+  flex-direction: row-reverse;
+}
