@@ -1,7 +1,5 @@
-// app/page.tsx
 import { supabase } from '@/lib/supabase'
 
-// Types
 type Team = {
   id: string
   name: string
@@ -22,7 +20,6 @@ type Match = {
   away_team: Team
 }
 
-// Composant logo d'équipe
 function TeamLogo({ team }: { team: Team }) {
   if (team.logo_url) {
     return (
@@ -42,7 +39,6 @@ function TeamLogo({ team }: { team: Team }) {
   )
 }
 
-// Composant score / heure
 function ScoreDisplay({ match }: { match: Match }) {
   if (match.status === 'live') {
     return (
@@ -69,7 +65,6 @@ function ScoreDisplay({ match }: { match: Match }) {
     )
   }
 
-  // À venir
   const time = new Date(match.match_date).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
@@ -77,15 +72,25 @@ function ScoreDisplay({ match }: { match: Match }) {
   return <span className="score-tbd">{time}</span>
 }
 
-// Badge de statut
 function StatusBadge({ status }: { status: string }) {
   if (status === 'live') return <span className="badge badge-live">En direct</span>
   if (status === 'finished') return <span className="badge badge-done">Terminé</span>
   return <span className="badge badge-soon">À venir</span>
 }
 
-// Carte de match
+function LiveDot() {
+  return <span className="live-dot" />
+}
+
 function MatchCard({ match }: { match: Match }) {
+  const homeLeading =
+    match.status === 'live' &&
+    (match.home_score ?? 0) > (match.away_score ?? 0)
+
+  const awayLeading =
+    match.status === 'live' &&
+    (match.away_score ?? 0) > (match.home_score ?? 0)
+
   return (
     <div className={`match-card ${match.status === 'live' ? 'match-card--live' : ''}`}>
       <div className="match-card__header">
@@ -96,9 +101,11 @@ function MatchCard({ match }: { match: Match }) {
         <div className="team-block">
           <TeamLogo team={match.home_team} />
           <span className="team-name">{match.home_team.name}</span>
+          {homeLeading && <LiveDot />}
         </div>
         <ScoreDisplay match={match} />
         <div className="team-block team-block--right">
+          {awayLeading && <LiveDot />}
           <span className="team-name">{match.away_team.name}</span>
           <TeamLogo team={match.away_team} />
         </div>
@@ -107,9 +114,7 @@ function MatchCard({ match }: { match: Match }) {
   )
 }
 
-// Page principale
 export default async function HomePage() {
-
   const { data: matches, error } = await supabase
     .from('matches')
     .select(`
@@ -124,7 +129,6 @@ export default async function HomePage() {
   }
 
   const allMatches = (matches as Match[]) ?? []
-
   const liveMatches = allMatches.filter(m => m.status === 'live')
   const finishedMatches = allMatches.filter(m => m.status === 'finished')
   const upcomingMatches = allMatches.filter(m => m.status === 'upcoming')
@@ -138,13 +142,11 @@ export default async function HomePage() {
 
   return (
     <main className="home-page">
-      {/* Hero */}
       <div className="hero-section">
         <h1 className="hero-title">Résultats du jour</h1>
         <p className="hero-subtitle">Ligue 1 · {today}</p>
       </div>
 
-      {/* Contenu */}
       <div className="matches-container">
         {allMatches.length === 0 && (
           <p className="empty-state">Aucun match aujourd'hui.</p>
