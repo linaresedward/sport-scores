@@ -552,3 +552,139 @@ html, body {
   color: #bbb;
   padding-top: 0.5rem;
 }
+/* ===== NOUVEAU LAYOUT GLOBAL ===== */
+
+.app-shell {
+  display: grid;
+  grid-template-rows: 44px 1fr;
+  min-height: 100vh;
+}
+
+.app-body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  overflow: hidden;
+  height: calc(100vh - 44px);
+}
+
+/* Topbar */
+.topbar {
+  background: white;
+  border-bottom: 1px solid #e8e8e6;
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem;
+  gap: 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.topbar__logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-right: 1.25rem;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.topbar__logo-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #E24B4A;
+}
+
+.topbar__sports {
+  display: flex;
+  align-items: center;
+  height: 44px;
+}
+
+.topbar__sport-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 1rem;
+  height: 44px;
+  font-size: 0.8125rem;
+  color: #888;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: color 0.1s ease;
+  white-space: nowrap;
+}
+
+.topbar__sport-tab:hover {
+  color: #1a1a1a;
+}
+
+.topbar__sport-tab--active {
+  color: #1a1a1a;
+  font-weight: 500;
+  border-bottom-color: #E24B4A;
+}
+
+.topbar__sport-icon {
+  font-size: 0.875rem;
+}
+
+/* Sidebar */
+.sidebar {
+  background: white;
+  border-right: 1px solid #e8e8e6;
+  overflow-y: auto;
+  padding: 0.75rem 0;
+}
+
+.sidebar__section {
+  margin-bottom: 1rem;
+}
+
+.sidebar__title {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #bbb;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0 0.75rem 0.375rem;
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
+  color: #555;
+  text-decoration: none;
+  transition: background 0.1s ease;
+}
+
+.sidebar__item:hover {
+  background: #f8f8f6;
+  color: #1a1a1a;
+}
+
+.sidebar__item--active {
+  background: #f4f4f2;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.sidebar__flag {
+  font-size: 0.875rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Zone de contenu principale */
+.main-content {
+  overflow-y: auto;
+  background: #f8f8f6;
+}
