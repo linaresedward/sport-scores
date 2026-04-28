@@ -1,11 +1,11 @@
-// app/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import LeagueSection from './components/LeagueSection'
 import { getAllMatchesByDate, Match } from '../lib/sportsdb'
 
-// ─── Helpers date ─────────────────────────────────────────────────
+const LIVE_STATUSES = ["In Progress", "HT", "1H", "2H", "ET", "P", "LIVE"]
+
 function formatDate(date: Date): string {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -26,35 +26,53 @@ function getDateWithOffset(offset: number): Date {
   return d
 }
 
-// ─── Composant principal ──────────────────────────────────────────
 export default function HomePage() {
   const [offset, setOffset] = useState(0)
   const [matchesByLeague, setMatchesByLeague] = useState<Record<string, Match[]>>({})
   const [loading, setLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState('')
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
-  useEffect(() => {
-    async function load() {
+  const load = useCallback(async (showLoading = true) => {
+    if (showLoading) {
       setLoading(true)
       setMatchesByLeague({})
-
-      const date = getDateWithOffset(offset)
-      const dateStr = formatDate(date)
-      setCurrentDate(dateStr)
-
-      const grouped = await getAllMatchesByDate(dateStr)
-      setMatchesByLeague(grouped)
-      setLoading(false)
     }
-    load()
+    const date = getDateWithOffset(offset)
+    const dateStr = formatDate(date)
+    setCurrentDate(dateStr)
+    const grouped = await getAllMatchesByDate(dateStr)
+    setMatchesByLeague(grouped)
+    setLastRefresh(new Date())
+    if (showLoading) setLoading(false)
   }, [offset])
 
+  // Chargement initial + changement de date
+  useEffect(() => {
+    load(true)
+  }, [load])
+
+  // Rafraîchissement auto toutes les 60s si matchs live
+  useEffect(() => {
+    const allMatches = Object.values(matchesByLeague).flat()
+    const hasLive = allMatches.some(m => LIVE_STATUSES.includes((m as any).strStatus || ''))
+    if (!hasLive || offset !== 0) return
+
+    const interval = setInterval(() => {
+      load(false) // refresh silencieux sans spinner
+    }, 60000)
+
+    return () => clearInterval(interval)
+  }, [matchesByLeague, offset, load])
+
   const leagues = Object.keys(matchesByLeague)
+  const allMatches = Object.values(matchesByLeague).flat()
+  const hasLive = allMatches.some(m => LIVE_STATUSES.includes((m as any).strStatus || ''))
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-6">
 
-      {/* ── Navigation par date ── */}
+      {/* Navigation par date */}
       <div className="flex items-center justify-between mb-6 bg-white rounded-xl shadow-sm p-3">
         {[-1, 0, 1].map((o) => {
           const d = getDateWithOffset(o)
@@ -82,7 +100,39 @@ export default function HomePage() {
         })}
       </div>
 
-      {/* ── Contenu ── */}
+      {/* Bandeau LIVE + heure de refresh */}
+      {hasLive && !loading && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#fef2f2', border: '1px solid #fecaca',
+          borderRadius: '10px', padding: '8px 14px', marginBottom: '16px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444',
+              animation: 'livePulse 1.5s ease-in-out infinite',
+            }} />
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#dc2626' }}>
+              MATCHS EN DIRECT
+            </span>
+          </div>
+          {lastRefresh && (
+            <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+              Mis à jour à {lastRefresh.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Animation CSS pour le point live */}
+      <style>{`
+        @keyframes livePulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.8); }
+        }
+      `}</style>
+
+      {/* Contenu */}
       {loading ? (
         <div className="text-center py-16 text-gray-400">
           <div className="text-3xl mb-3">⚽</div>
