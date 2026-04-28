@@ -1,115 +1,111 @@
-import {
-  getRecentMatches,
-  getUpcomingMatches,
-  getTodayMatches,
-  getYesterdayMatches,
-  LEAGUE_IDS,
-  ALLOWED_LEAGUES,
-  type Match
-} from '@/lib/sportsdb'
-import LeagueSection from './components/LeagueSection'
+// app/page.tsx
+'use client'
 
-function groupByLeague(matches: Match[]): Record<string, Match[]> {
-  return matches.reduce((acc, match) => {
-    const key = match.strLeague
-    if (!acc[key]) acc[key] = []
-    acc[key].push(match)
-    return acc
-  }, {} as Record<string, Match[]>)
+import { useState, useEffect } from 'react'
+import LeagueSection from './components/LeagueSection'
+import { getAllMatchesByDate, Match } from '../lib/sportsdb'
+
+// ─── Helpers date ─────────────────────────────────────────────────
+function formatDate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
-const LEAGUE_ORDER = [
-  'French Ligue 1',
-  'English Premier League',
-  'Spanish La Liga',
-  'German Bundesliga',
-  'Italian Serie A',
-  'UEFA Champions League',
-]
+function getDateLabel(offset: number): string {
+  if (offset === -1) return 'Hier'
+  if (offset === 0) return "Aujourd'hui"
+  if (offset === 1) return 'Demain'
+  return ''
+}
 
-export default async function HomePage() {
-  const [
-    ligue1Past, ligue1Next,
-    plPast, plNext,
-    laLigaPast,
-    bundesligaPast,
-    serieAPast,
-    todayMatches,
-    yesterdayMatches,
-  ] = await Promise.all([
-    getRecentMatches(LEAGUE_IDS.ligue1),
-    getUpcomingMatches(LEAGUE_IDS.ligue1),
-    getRecentMatches(LEAGUE_IDS.premierLeague),
-    getUpcomingMatches(LEAGUE_IDS.premierLeague),
-    getRecentMatches(LEAGUE_IDS.laLiga),
-    getRecentMatches(LEAGUE_IDS.bundesliga),
-    getRecentMatches(LEAGUE_IDS.serieA),
-    getTodayMatches(),
-    getYesterdayMatches(),
-  ])
+function getDateWithOffset(offset: number): Date {
+  const d = new Date()
+  d.setDate(d.getDate() + offset)
+  return d
+}
 
-  const seen = new Set<string>()
-  const allMatches = [
-    ...todayMatches,
-    ...yesterdayMatches,
-    ...ligue1Past, ...ligue1Next,
-    ...plPast, ...plNext,
-    ...laLigaPast,
-    ...bundesligaPast,
-    ...serieAPast,
-  ]
-  .filter(match => {
-    if (!ALLOWED_LEAGUES.has(match.strLeague)) return false
-    if (seen.has(match.idEvent)) return false
-    seen.add(match.idEvent)
-    return true
-  })
-  .sort((a, b) => new Date(b.dateEvent).getTime() - new Date(a.dateEvent).getTime())
-  .slice(0, 60)
+// ─── Composant principal ──────────────────────────────────────────
+export default function HomePage() {
+  const [offset, setOffset] = useState(0)
+  const [matchesByLeague, setMatchesByLeague] = useState<Record<string, Match[]>>({})
+  const [loading, setLoading] = useState(true)
+  const [currentDate, setCurrentDate] = useState('')
 
-  const grouped = groupByLeague(allMatches)
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      setMatchesByLeague({})
 
-  const sortedEntries = Object.entries(grouped).sort(([a], [b]) => {
-    const ia = LEAGUE_ORDER.indexOf(a)
-    const ib = LEAGUE_ORDER.indexOf(b)
-    if (ia === -1 && ib === -1) return a.localeCompare(b)
-    if (ia === -1) return 1
-    if (ib === -1) return -1
-    return ia - ib
-  })
+      const date = getDateWithOffset(offset)
+      const dateStr = formatDate(date)
+      setCurrentDate(dateStr)
+
+      const grouped = await getAllMatchesByDate(dateStr)
+      setMatchesByLeague(grouped)
+      setLoading(false)
+    }
+    load()
+  }, [offset])
+
+  const leagues = Object.keys(matchesByLeague)
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-6">
-      <div className="flex items-center gap-2 mb-6">
-        {['Hier', "Aujourd'hui", 'Demain'].map((label, i) => (
-          <button
-            key={label}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              i === 1
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+
+      {/* ── Navigation par date ── */}
+      <div className="flex items-center justify-between mb-6 bg-white rounded-xl shadow-sm p-3">
+        {[-1, 0, 1].map((o) => {
+          const d = getDateWithOffset(o)
+          const isActive = o === offset
+          return (
+            <button
+              key={o}
+              onClick={() => setOffset(o)}
+              className={`flex-1 mx-1 py-2 px-3 rounded-lg text-center transition-all ${
+                isActive
+                  ? 'bg-blue-600 text-white font-semibold shadow'
+                  : 'text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              <div className="text-xs font-medium">{getDateLabel(o)}</div>
+              <div className="text-xs opacity-75 capitalize">
+                {d.toLocaleDateString('fr-FR', {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                })}
+              </div>
+            </button>
+          )
+        })}
       </div>
 
-      {sortedEntries.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-4xl mb-4">⚽</p>
-          <p className="text-gray-400">Aucun match trouvé</p>
-          <p className="text-gray-600 text-sm mt-2">Essayez "Hier" pour voir les derniers résultats</p>
+      {/* ── Contenu ── */}
+      {loading ? (
+        <div className="text-center py-16 text-gray-400">
+          <div className="text-3xl mb-3">⚽</div>
+          <p>Chargement des matchs...</p>
+        </div>
+      ) : leagues.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <div className="text-3xl mb-3">📅</div>
+          <p>Aucun match trouvé pour le {currentDate}</p>
+          <p className="text-sm mt-1">Essayez une autre date</p>
         </div>
       ) : (
-        sortedEntries.map(([leagueName, matches]) => (
-          <LeagueSection
-            key={leagueName}
-            leagueName={leagueName}
-            matches={matches}
-          />
-        ))
+        <div className="space-y-4">
+          {leagues.map((league) => (
+            <LeagueSection
+              key={league}
+              leagueName={league}
+              matches={matchesByLeague[league]}
+            />
+          ))}
+        </div>
       )}
+
     </main>
   )
 }

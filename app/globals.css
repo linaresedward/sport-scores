@@ -688,3 +688,18 @@ html, body {
   overflow-y: auto;
   background: #f8f8f6;
 }
+/* Code pays (remplace emojis drapeaux) */
+.sidebar__flag--code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 3px;
+  padding: 1px 3px;
+  flex-shrink: 0;
+}
