@@ -3,81 +3,289 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
-const API_KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY
-const BASE = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`
+const BASE = `https://www.thesportsdb.com/api/v1/json/139695`
 
-// Grands tournois ATP/WTA connus dans TheSportsDB
-const TOURNAMENTS = [
-  { id: '4658', name: 'Roland Garros',  surface: '🔴 Terre battue' },
-  { id: '4659', name: 'Wimbledon',      surface: '🟢 Gazon' },
-  { id: '4660', name: 'US Open',        surface: '🔵 Dur' },
-  { id: '4661', name: 'Australian Open',surface: '🔵 Dur' },
-]
-
-interface TennisMatch {
+interface TennisEvent {
   idEvent: string
   strEvent: string
-  strHomeTeam: string
-  strAwayTeam: string
-  strHomeTeamBadge: string
-  strAwayTeamBadge: string
-  intHomeScore: string | null
-  intAwayScore: string | null
+  strDescriptionEN: string | null
+  strResult: string | null
   strStatus: string
   dateEvent: string
   strTime: string
+  strCity: string | null
+  strCountry: string | null
   strLeague: string
-  intRound: string | null
+  idLeague: string
 }
 
-interface TournamentData {
-  id: string
-  name: string
-  surface: string
-  upcoming: TennisMatch[]
-  past: TennisMatch[]
-  error?: boolean
+function parsePlayers(strEvent: string): { p1: string; p2: string } {
+  const vsIdx = strEvent.indexOf(' vs ')
+  if (vsIdx < 0) return { p1: strEvent, p2: '' }
+  const beforeVs = strEvent.slice(0, vsIdx).trim().split(' ')
+  const p1 = beforeVs[beforeVs.length - 1]
+  const p2 = strEvent.slice(vsIdx + 4).trim()
+  return { p1, p2 }
 }
+
+function parseMeta(strEvent: string, desc: string | null): {
+  tournament: string; phase: string; surface: string; surfaceColor: string
+} {
+  let tournament = ''
+  let phase = ''
+
+  if (desc) {
+    const lines = desc.split('\n')
+    const parts = lines[0]?.split(' - ') ?? []
+    tournament = parts[0]?.trim() ?? ''
+    phase = parts[2]?.trim() ?? parts[1]?.trim() ?? ''
+  }
+
+  if (!tournament) {
+    const vsIdx = strEvent.indexOf(' vs ')
+    if (vsIdx > 0) {
+      const words = strEvent.slice(0, vsIdx).trim().split(' ')
+      words.pop()
+      tournament = words.join(' ')
+    }
+  }
+
+  const t = tournament.toLowerCase()
+  let surface = 'Dur'
+  let surfaceColor = '#3b82f6'
+  if (t.includes('madrid') || t.includes('barcelona') || t.includes('roland') ||
+      t.includes('monte') || t.includes('rome') || t.includes('munich') ||
+      t.includes('bmw') || t.includes('hamburg') || t.includes('lyon')) {
+    surface = 'Terre battue'; surfaceColor = '#ef4444'
+  } else if (t.includes('wimbledon') || t.includes('queens') || t.includes('halle') ||
+             t.includes('grass') || t.includes('nottingham')) {
+    surface = 'Gazon'; surfaceColor = '#22c55e'
+  }
+
+  return { tournament, phase, surface, surfaceColor }
+}
+function translatePhase(phase: string): string {
+  const map: Record<string, string> = {
+    'The Final':        'Finale',
+    'Finals':           'Finale',
+    'Semifinals':       'Demi-finales',
+    'Quarterfinals':    'Quarts de finale',
+    '2nd Round':        '2ème tour',
+    '1st Round':        '1er tour',
+    'Round of 16':      'Huitièmes de finale',
+    'Round of 32':      'Seizièmes de finale',
+    'Round Robin':      'Phase de groupes',
+    'Qualifying':       'Qualifications',
+    'First Round':      '1er tour',
+    'Second Round':     '2ème tour',
+    'Third Round':      '3ème tour',
+    'Fourth Round':     '4ème tour',
+  }
+  return map[phase] ?? phase
+}
+
+function parseResult(strResult: string | null): {
+  p1sets: string[]; p2sets: string[]; winner: string
+} {
+  if (!strResult) return { p1sets: [], p2sets: [], winner: '' }
+  const lines = strResult.split('\n').filter(Boolean)
+  const winner = lines[0]?.split(' beat ')[0]?.trim() ?? ''
+  const p1sets = lines[1]?.split(':')[1]?.trim().split(/\s+/).filter(Boolean) ?? []
+  const p2sets = lines[2]?.split(':')[1]?.trim().split(/\s+/).filter(Boolean) ?? []
+  return { p1sets, p2sets, winner }
+}
+
+interface TournamentGroup {
+  key: string
+  tournament: string
+  surface: string
+  surfaceColor: string
+  city: string
+  country: string
+  events: TennisEvent[]
+}
+
+function groupByTournament(events: TennisEvent[]): TournamentGroup[] {
+  const map = new Map<string, TournamentGroup>()
+  for (const ev of events) {
+    const { tournament, surface, surfaceColor } = parseMeta(ev.strEvent, ev.strDescriptionEN)
+    const key = tournament || 'Autre'
+    if (!map.has(key)) {
+      map.set(key, {
+        key, tournament, surface, surfaceColor,
+        city: ev.strCity ?? '', country: ev.strCountry ?? '',
+        events: [],
+      })
+    }
+    map.get(key)!.events.push(ev)
+  }
+  return [...map.values()]
+}
+
+// ─── Match Row ────────────────────────────────────────────────────────────────
+
+function MatchRow({ ev, showPhase }: { ev: TennisEvent; showPhase: boolean }) {
+  const { p1, p2 } = parsePlayers(ev.strEvent)
+  const { p1sets, p2sets, winner } = parseResult(ev.strResult)
+  const { phase } = parseMeta(ev.strEvent, ev.strDescriptionEN)
+  const isFinished = ev.strStatus === 'Match Finished'
+  const isLive = ['In Progress', '1H', '2H', 'HT', 'LIVE'].includes(ev.strStatus)
+  const p1won = isFinished && winner === p1
+  const p2won = isFinished && winner === p2
+
+  return (
+    <>
+      {showPhase && phase && (
+  <div className="px-4 pt-3 pb-1">
+    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+      {translatePhase(phase)}
+    </span>
+  </div>
+)}
+      <Link
+        href={`/match/${ev.idEvent}`}
+        className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+      >
+        {/* Statut */}
+        <div className="w-14 shrink-0 text-center">
+          {isLive ? (
+            <span className="flex items-center justify-center gap-1 text-xs font-bold text-red-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
+              LIVE
+            </span>
+          ) : isFinished ? (
+            <span className="text-xs text-gray-600 font-medium">FT</span>
+          ) : (
+            <span className="text-xs text-blue-400 font-semibold">
+              {ev.strTime?.slice(0, 5) || '—'}
+            </span>
+          )}
+        </div>
+
+        {/* Joueurs */}
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex items-center gap-2">
+            {p1won && <span className="w-1 h-1 rounded-full bg-green-400 shrink-0" />}
+            <p className={`text-sm truncate leading-none ${
+              p1won ? 'font-bold text-white' :
+              p2won ? 'text-gray-500' : 'text-gray-200'
+            }`}>
+              {p1}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {p2won && <span className="w-1 h-1 rounded-full bg-green-400 shrink-0" />}
+            <p className={`text-sm truncate leading-none ${
+              p2won ? 'font-bold text-white' :
+              p1won ? 'text-gray-500' : 'text-gray-200'
+            }`}>
+              {p2}
+            </p>
+          </div>
+        </div>
+
+        {/* Sets */}
+        {p1sets.length > 0 && (
+          <div className="flex gap-2 shrink-0">
+            {p1sets.map((s, i) => (
+              <div key={i} className="flex flex-col items-center gap-1.5 w-5">
+                <span className={`text-sm tabular-nums leading-none ${
+                  p1won ? 'font-bold text-white' : 'text-gray-500'
+                }`}>{s}</span>
+                <span className={`text-sm tabular-nums leading-none ${
+                  p2won ? 'font-bold text-white' : 'text-gray-500'
+                }`}>{p2sets[i] ?? ''}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <span className="text-gray-700 text-xs shrink-0">›</span>
+      </Link>
+    </>
+  )
+}
+
+// ─── Tournament Block ─────────────────────────────────────────────────────────
+
+function TournamentBlock({ group }: { group: TournamentGroup }) {
+  let lastPhase = ''
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-white/10"
+      style={{ background: 'linear-gradient(135deg, #1e2433 0%, #151922 100%)' }}>
+
+      {/* Header */}
+      <div className="px-4 py-3 flex items-center gap-3 border-b border-white/10"
+        style={{ background: 'rgba(255,255,255,0.04)' }}>
+        {/* Indicateur surface */}
+        <div className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: group.surfaceColor }} />
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-white text-sm truncate">
+            {group.tournament || group.key}
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {group.surface}
+            {group.city && ` · ${group.city}`}
+            {group.country && `, ${group.country}`}
+          </p>
+        </div>
+      </div>
+
+      {/* Matchs */}
+      {group.events.map((ev) => {
+        const { phase } = parseMeta(ev.strEvent, ev.strDescriptionEN)
+        const showPhase = phase !== lastPhase
+        lastPhase = phase
+        return (
+          <MatchRow key={ev.idEvent} ev={ev} showPhase={showPhase} />
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function TennisClient() {
-  const [tournaments, setTournaments] = useState<TournamentData[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [tab, setTab]                 = useState<'upcoming' | 'past'>('upcoming')
+  const [atpPast, setAtpPast]   = useState<TennisEvent[]>([])
+  const [wtaPast, setWtaPast]   = useState<TennisEvent[]>([])
+  const [atpNext, setAtpNext]   = useState<TennisEvent[]>([])
+  const [wtaNext, setWtaNext]   = useState<TennisEvent[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [tab, setTab]           = useState<'results' | 'upcoming'>('results')
 
   useEffect(() => {
     async function fetchAll() {
-      const results = await Promise.all(
-        TOURNAMENTS.map(async (t) => {
-          try {
-            const [nextRes, pastRes] = await Promise.all([
-              fetch(`${BASE}/eventsnextleague.php?id=${t.id}`),
-              fetch(`${BASE}/eventslast.php?id=${t.id}`),
-            ])
-            const nextData = await nextRes.json()
-            const pastData = await pastRes.json()
-            return {
-              ...t,
-              upcoming: nextData.events ?? [],
-              past:     (pastData.results ?? pastData.events ?? []).slice(0, 10),
-            }
-          } catch {
-            return { ...t, upcoming: [], past: [], error: true }
-          }
-        })
-      )
-      // Filtrer les tournois qui ont des matchs
-      setTournaments(results.filter(t => t.upcoming.length > 0 || t.past.length > 0))
-      setLoading(false)
+      setLoading(true)
+      try {
+        const [r1, r2, r3, r4] = await Promise.all([
+          fetch(`${BASE}/eventspastleague.php?id=4464`),
+          fetch(`${BASE}/eventspastleague.php?id=4517`),
+          fetch(`${BASE}/eventsnextleague.php?id=4464`),
+          fetch(`${BASE}/eventsnextleague.php?id=4517`),
+        ])
+        const [d1, d2, d3, d4] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json()])
+        setAtpPast(d1.events ?? [])
+        setWtaPast(d2.events ?? [])
+        setAtpNext(d3.events ?? [])
+        setWtaNext(d4.events ?? [])
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
     }
     fetchAll()
   }, [])
 
-  if (loading) return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
-      {[...Array(3)].map((_, i) => (
-        <div key={i} className="h-32 bg-gray-800 rounded-xl animate-pulse" />
-      ))}
-    </div>
+  const atpEvents = tab === 'results' ? atpPast : atpNext
+  const wtaEvents = tab === 'results' ? wtaPast : wtaNext
+  const atpGroups = groupByTournament(atpEvents)
+  const wtaGroups = groupByTournament(wtaEvents)
+  const hasLive = [...atpEvents, ...wtaEvents].some(e =>
+    ['In Progress', 'LIVE', '1H', '2H'].includes(e.strStatus)
   )
 
   return (
@@ -85,115 +293,80 @@ export default function TennisClient() {
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <span className="text-3xl">🎾</span>
-        <div>
-          <h1 className="text-xl font-black text-white">Tennis</h1>
-          <p className="text-xs text-gray-500">Grands tournois ATP / WTA</p>
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/20 flex items-center justify-center text-2xl">
+          🎾
         </div>
+        <div className="flex-1">
+          <h1 className="text-xl font-black text-white">Tennis</h1>
+          <p className="text-xs text-gray-500">Circuits ATP & WTA</p>
+        </div>
+        {hasLive && (
+          <span className="flex items-center gap-1.5 text-xs font-bold text-red-400 bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            EN DIRECT
+          </span>
+        )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-900 p-1 rounded-xl border border-gray-800">
-        <button
-          onClick={() => setTab('upcoming')}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
-            tab === 'upcoming' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          📅 Prochains matchs
-        </button>
-        <button
-          onClick={() => setTab('past')}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
-            tab === 'past' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          📋 Résultats récents
-        </button>
+      <div className="flex gap-1 mb-6 bg-gray-900 p-1 rounded-2xl border border-white/10">
+        {(['results', 'upcoming'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              tab === t
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {t === 'results' ? '📋 Résultats' : '📅 À venir'}
+          </button>
+        ))}
       </div>
 
-      {tournaments.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <p className="text-4xl mb-3">🎾</p>
-          <p className="font-medium">Aucun tournoi majeur en ce moment</p>
-          <p className="text-sm mt-1">Roland Garros, Wimbledon, US Open et Australian Open apparaîtront ici</p>
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-40 rounded-2xl bg-gray-800 animate-pulse" />
+          ))}
         </div>
       ) : (
         <div className="space-y-6">
-          {tournaments.map(tournament => {
-            const matches = tab === 'upcoming' ? tournament.upcoming : tournament.past
-            if (matches.length === 0) return null
 
-            return (
-              <div key={tournament.id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-
-                {/* Header tournoi */}
-                <div className="px-4 py-3 border-b border-gray-800 bg-gray-800/50 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-white">{tournament.name}</p>
-                    <p className="text-xs text-gray-500">{tournament.surface}</p>
-                  </div>
+          {/* ATP */}
+          {atpGroups.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="px-2.5 py-1 rounded-lg bg-blue-500/15 border border-blue-500/25">
+                  <span className="text-xs font-black text-blue-400 tracking-wider">ATP</span>
                 </div>
-
-                {/* Matchs */}
-                {matches.map(match => {
-                  const hasScore   = match.intHomeScore !== null && match.intAwayScore !== null
-                  const isFinished = match.strStatus === 'Match Finished'
-
-                  return (
-                    <Link
-                      key={match.idEvent}
-                      href={`/match/${match.idEvent}`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-800/60 transition border-b border-gray-800/50 last:border-0"
-                    >
-                      {/* Date */}
-                      <div className="w-16 shrink-0 text-center">
-                        {isFinished ? (
-                          <span className="text-xs text-gray-500 font-medium">FT</span>
-                        ) : (
-                          <div>
-                            <p className="text-xs text-gray-500">
-                              {new Date(match.dateEvent).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-                            </p>
-                            <p className="text-xs text-blue-400 font-medium">
-                              {match.strTime?.slice(0, 5)}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Joueurs */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-200 truncate font-medium">
-                          {match.strHomeTeam}
-                        </p>
-                        <p className="text-sm text-gray-400 truncate">
-                          {match.strAwayTeam}
-                        </p>
-                      </div>
-
-                      {/* Score (sets) */}
-                      {hasScore && (
-                        <div className="shrink-0 text-right">
-                          <p className="text-sm font-bold text-white tabular-nums">
-                            {match.intHomeScore} – {match.intAwayScore}
-                          </p>
-                          <p className="text-xs text-gray-500">sets</p>
-                        </div>
-                      )}
-
-                      <span className="text-gray-600 text-xs shrink-0">›</span>
-                    </Link>
-                  )
-                })}
+                <span className="text-xs text-gray-600 font-medium">Circuit Masculin</span>
               </div>
-            )
-          })}
+              {atpGroups.map(g => <TournamentBlock key={g.key} group={g} />)}
+            </div>
+          )}
 
-          {/* Si aucun tournoi n'a de matchs pour cet onglet */}
-          {tournaments.every(t => (tab === 'upcoming' ? t.upcoming : t.past).length === 0) && (
-            <div className="text-center py-12 text-gray-500">
-              <p>Aucun match disponible pour cette période</p>
+          {/* WTA */}
+          {wtaGroups.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="px-2.5 py-1 rounded-lg bg-pink-500/15 border border-pink-500/25">
+                  <span className="text-xs font-black text-pink-400 tracking-wider">WTA</span>
+                </div>
+                <span className="text-xs text-gray-600 font-medium">Circuit Féminin</span>
+              </div>
+              {wtaGroups.map(g => <TournamentBlock key={g.key} group={g} />)}
+            </div>
+          )}
+
+          {atpGroups.length === 0 && wtaGroups.length === 0 && (
+            <div className="text-center py-20">
+              <div className="text-5xl mb-4">🎾</div>
+              <p className="text-gray-400 font-medium">Aucun match disponible</p>
+              <p className="text-gray-600 text-sm mt-1">
+                {tab === 'upcoming' ? 'Pas de matchs programmés' : 'Aucun résultat récent'}
+              </p>
             </div>
           )}
         </div>

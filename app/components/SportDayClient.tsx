@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
-const API_KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY
-const BASE = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`
+const BASE = `https://www.thesportsdb.com/api/v1/json/139695`
 
 interface SportEvent {
   idEvent: string
