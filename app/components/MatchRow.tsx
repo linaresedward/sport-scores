@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import type { Match } from '@/lib/sportsdb'
 
 interface Props {
@@ -43,8 +44,10 @@ export default function MatchRow({ match }: Props) {
   const time = match.strTime?.slice(0, 5) ?? ''
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0">
-
+    <Link
+      href={`/match/${match.idEvent}`}
+      className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-0 cursor-pointer"
+    >
       {/* Colonne heure/statut */}
       <div className="w-14 shrink-0 text-center">
         {hasScore ? (
@@ -109,6 +112,9 @@ export default function MatchRow({ match }: Props) {
           </span>
         </div>
       )}
-    </div>
+
+      {/* Flèche indicateur cliquable */}
+      <div className="shrink-0 text-gray-300 text-xs">›</div>
+    </Link>
   )
 }

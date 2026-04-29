@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import ShowMoreResults from "./ShowMoreResults";
 import StandingsPanel from "../../components/StandingsPanel";
 
 const KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY;
 
-// IDs des coupes européennes (rounds spéciaux)
 const CUP_IDS = ["4480", "4481", "4482", "4483"];
 
 type Event = {
@@ -29,19 +29,9 @@ type Event = {
 const LIVE_STATUSES = ["In Progress", "HT", "1H", "2H", "ET", "P", "LIVE"];
 
 const ROUND_ORDER_CUP: Record<string, number> = {
-  "150": 100,
-  "125": 90,
-  "16":  80,
-  "32":  70,
-  "8":   60,
-  "7":   59,
-  "6":   58,
-  "5":   57,
-  "4":   56,
-  "3":   55,
-  "2":   54,
-  "1":   53,
-  "400": 10,
+  "150": 100, "125": 90, "16": 80, "32": 70,
+  "8": 60, "7": 59, "6": 58, "5": 57,
+  "4": 56, "3": 55, "2": 54, "1": 53, "400": 10,
 };
 
 function getRoundLabel(round: string | null, leagueId?: string): string {
@@ -57,7 +47,6 @@ function getRoundLabel(round: string | null, leagueId?: string): string {
     if (n >= 1 && n <= 8) return `Journée ${n} — Phase de ligue`;
     return `Round ${round}`;
   }
-  // Championnat : journée simple
   const n = parseInt(round);
   if (!isNaN(n)) return `Journée ${n}`;
   return round;
@@ -66,12 +55,18 @@ function getRoundLabel(round: string | null, leagueId?: string): string {
 function getRoundPriority(round: string | null, leagueId?: string): number {
   const isCup = leagueId ? CUP_IDS.includes(leagueId) : false;
   if (isCup) return ROUND_ORDER_CUP[round || "0"] ?? 0;
-  // Pour les championnats : journée la plus haute en premier
   return parseInt(round || "0");
 }
 
-function isLive(ev: Event) {
-  return LIVE_STATUSES.includes(ev.strStatus);
+// ✅ CORRECTION : un match est vraiment LIVE seulement si son statut est live
+//    ET soit pas de score, soit la date est il y a moins de 3h
+function isReallyLive(ev: Event): boolean {
+  if (!LIVE_STATUSES.includes(ev.strStatus)) return false;
+  if (ev.intHomeScore === null) return true; // pas encore de score → vraiment à venir ou en cours
+  const matchDate = new Date(ev.strTimestamp || `${ev.dateEvent}T${ev.strTime || "00:00:00"}Z`);
+  const diffMs = Date.now() - matchDate.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  return diffHours < 4; // si plus de 3h depuis le coup d'envoi → on considère terminé
 }
 
 function getEventDate(ev: Event): Date {
@@ -217,7 +212,7 @@ export function RoundBlock({ round, events, upcoming, leagueId }: {
         {events.map((ev, idx) => (
           <div key={ev.idEvent}>
             {idx > 0 && <div style={{ height: "1px", background: "#f8fafc", marginLeft: "16px" }} />}
-            <MatchRow ev={ev} upcoming={upcoming} />
+            <MatchRowLigue ev={ev} upcoming={upcoming} />
           </div>
         ))}
       </div>
@@ -225,21 +220,30 @@ export function RoundBlock({ round, events, upcoming, leagueId }: {
   );
 }
 
-export function MatchRow({ ev, upcoming }: { ev: Event; upcoming?: boolean }) {
-  const live = isLive(ev);
+// ✅ Renommé MatchRowLigue pour éviter le conflit avec MatchRow de la page d'accueil
+// ✅ Enveloppé dans <Link> pour rendre cliquable
+export function MatchRowLigue({ ev, upcoming }: { ev: Event; upcoming?: boolean }) {
+  const live = isReallyLive(ev);  // ✅ utilise la fonction corrigée
   const hasScore = ev.intHomeScore !== null && ev.intAwayScore !== null;
   const date = getEventDate(ev);
   const homeWin = hasScore && parseInt(ev.intHomeScore!) > parseInt(ev.intAwayScore!);
   const awayWin = hasScore && parseInt(ev.intAwayScore!) > parseInt(ev.intHomeScore!);
 
   return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "80px 1fr 40px",
-      alignItems: "center",
-      padding: "10px 16px",
-      gap: "12px",
-    }}>
+    <Link
+      href={`/match/${ev.idEvent}`}
+      className="match-row-link"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "80px 1fr 40px",
+        alignItems: "center",
+        padding: "10px 16px",
+        gap: "12px",
+        textDecoration: "none",
+        color: "inherit",
+      }}
+    >
+      {/* Heure / statut */}
       <div>
         {live ? (
           <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -253,14 +257,17 @@ export function MatchRow({ ev, upcoming }: { ev: Event; upcoming?: boolean }) {
             <div style={{ fontSize: "11px", color: "#94a3b8" }} suppressHydrationWarning>
               {date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
             </div>
-            <div style={{ fontSize: "12px", fontWeight: 600, color: upcoming ? "#2563eb" : "#64748b" }}
-              suppressHydrationWarning>
+            <div
+              style={{ fontSize: "12px", fontWeight: 600, color: upcoming ? "#2563eb" : "#64748b" }}
+              suppressHydrationWarning
+            >
               {date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
             </div>
           </div>
         )}
       </div>
 
+      {/* Équipes */}
       <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {ev.strHomeTeamBadge && (
@@ -282,6 +289,7 @@ export function MatchRow({ ev, upcoming }: { ev: Event; upcoming?: boolean }) {
         </div>
       </div>
 
+      {/* Scores */}
       <div style={{ textAlign: "right" }}>
         {hasScore ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -296,6 +304,9 @@ export function MatchRow({ ev, upcoming }: { ev: Event; upcoming?: boolean }) {
           <span style={{ fontSize: "12px", color: "#cbd5e1" }}>–</span>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
+
+// ✅ On garde l'export MatchRow pour que ShowMoreResults ne casse pas
+export { MatchRowLigue as MatchRow };

@@ -703,3 +703,6 @@ html, body {
   padding: 1px 3px;
   flex-shrink: 0;
 }
+.match-row-link:hover {
+  background: #f8fafc;
+}
