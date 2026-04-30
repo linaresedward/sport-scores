@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import FavoriteButton from '../../components/FavoriteButton'
 
-const API_KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY
-const BASE = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`
+const BASE = "https://www.thesportsdb.com/api/v1/json/139695"
 
 const LIVE_STATUSES = ['In Progress', 'HT', '1H', '2H', 'ET', 'P', 'LIVE']
 
@@ -15,10 +15,11 @@ interface MatchEvent {
   intHomeScore: string | null
   intAwayScore: string | null
   strStatus: string
-  intMinute: string | null   // ✅ minute exacte de jeu
+  intMinute: string | null
   dateEvent: string
   strTime: string
   strLeague: string
+  idLeague: string
   strHomeTeamBadge: string
   strAwayTeamBadge: string
   strVenue: string | null
@@ -45,8 +46,6 @@ interface LineupPlayer {
   strHome: string
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function formatDate(dateStr: string, timeStr: string) {
   const dt = new Date(`${dateStr}T${timeStr}`)
   return dt.toLocaleDateString('fr-FR', {
@@ -56,12 +55,8 @@ function formatDate(dateStr: string, timeStr: string) {
 }
 
 function isReallyLive(status: string, dateStr: string, timeStr: string): boolean {
-  // ✅ On fait confiance à l'API en priorité
   if (status === 'Match Finished') return false
   if (!LIVE_STATUSES.includes(status)) return false
-
-  // ✅ Fallback sécurité : si l'API est bloquée depuis > 4h, on considère terminé
-  // 4h couvre : 90min match + 30min prolongations + 30min tirs au but + marge
   const matchDate = new Date(`${dateStr}T${timeStr}Z`)
   const diffHours = (Date.now() - matchDate.getTime()) / (1000 * 60 * 60)
   return diffHours < 4
@@ -69,32 +64,22 @@ function isReallyLive(status: string, dateStr: string, timeStr: string): boolean
 
 function statusLabel(match: MatchEvent) {
   const live = isReallyLive(match.strStatus, match.dateEvent, match.strTime)
-
   if (!live && match.strStatus !== 'NS') {
     return { label: 'Terminé', color: 'text-gray-400', isLive: false }
   }
-
-  // ✅ Libellé période + minute exacte si disponible
   const minute = match.intMinute ? ` • ${match.intMinute}'` : ''
-
   const map: Record<string, string> = {
     'In Progress': `EN DIRECT${minute}`,
-    '1H':          `1ère MT${minute}`,
-    '2H':          `2ème MT${minute}`,
-    'HT':          'Mi-temps',
-    'ET':          `Prol.${minute}`,
-    'P':           'Tirs au but',
-    'NS':          'À venir',
+    '1H': `1ère MT${minute}`,
+    '2H': `2ème MT${minute}`,
+    'HT': 'Mi-temps',
+    'ET': `Prol.${minute}`,
+    'P': 'Tirs au but',
+    'NS': 'À venir',
   }
-
   const label = map[match.strStatus] ?? `LIVE${minute}`
-
-  if (match.strStatus === 'NS') {
-    return { label, color: 'text-blue-400', isLive: false }
-  }
-  if (match.strStatus === 'HT') {
-    return { label, color: 'text-yellow-400', isLive: true }
-  }
+  if (match.strStatus === 'NS') return { label, color: 'text-blue-400', isLive: false }
+  if (match.strStatus === 'HT') return { label, color: 'text-yellow-400', isLive: true }
   return { label, color: 'text-red-400', isLive: true }
 }
 
@@ -119,8 +104,6 @@ function cleanEventLabel(detail: string): string {
   return detail?.replace(/^\d+'\s*[-–]?\s*/i, '').trim() ?? ''
 }
 
-// ─── Composant principal ──────────────────────────────────────────────────────
-
 export default function MatchDetailClient({ matchId }: { matchId: string }) {
   const [match, setMatch]         = useState<MatchEvent | null>(null)
   const [timeline, setTimeline]   = useState<TimelineEvent[]>([])
@@ -128,7 +111,6 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
   const [loading, setLoading]     = useState(true)
   const [activeTab, setActiveTab] = useState<'events' | 'lineup' | 'info'>('events')
 
-  // ✅ fetchMatch séparé pour le refresh live (on ne re-fetch pas lineup/timeline inutilement)
   const fetchMatch = useCallback(async () => {
     const res  = await fetch(`${BASE}/lookupevent.php?id=${matchId}`)
     const data = await res.json()
@@ -145,10 +127,9 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
           fetch(`${BASE}/lookuptimeline.php?id=${matchId}`),
           fetch(`${BASE}/lookuplineup.php?id=${matchId}`),
         ])
-        const matchData    = await matchRes.json()
-        const timelineData = await timelineRes.json()
-        const lineupData   = await lineupRes.json()
-
+        const [matchData, timelineData, lineupData] = await Promise.all([
+          matchRes.json(), timelineRes.json(), lineupRes.json()
+        ])
         const event = matchData.events?.[0] ?? matchData.event?.[0] ?? null
         setMatch(event)
         setTimeline(timelineData.timeline ?? [])
@@ -162,16 +143,13 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
     fetchAll()
   }, [matchId])
 
-  // ✅ Refresh toutes les 30s si le match est LIVE
   useEffect(() => {
     if (!match) return
     const live = isReallyLive(match.strStatus, match.dateEvent, match.strTime)
     if (!live) return
-
     const interval = setInterval(async () => {
       try {
         const updated = await fetchMatch()
-        // Si le match vient de se terminer, on re-fetch aussi la timeline
         if (updated?.strStatus === 'Match Finished') {
           const tlRes  = await fetch(`${BASE}/lookuptimeline.php?id=${matchId}`)
           const tlData = await tlRes.json()
@@ -180,13 +158,12 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
       } catch (e) {
         console.error('Refresh error:', e)
       }
-    }, 30_000) // 30 secondes
-
+    }, 30_000)
     return () => clearInterval(interval)
   }, [match, fetchMatch, matchId])
 
   if (loading) return null
-  if (!match)  return (
+  if (!match) return (
     <div className="text-center py-20 text-gray-400">Match introuvable</div>
   )
 
@@ -209,33 +186,50 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
       <div className="bg-gray-900 rounded-2xl p-6 mb-6 border border-gray-800">
 
         {/* Ligue + statut */}
-        <div className="text-center mb-4">
+        <div className="text-center mb-6">
           <p className="text-gray-400 text-sm">{match.strLeague}</p>
           <p className={`font-bold text-sm mt-1 ${statusColor} ${isLive ? 'animate-pulse' : ''}`}>
-            {/* ✅ Pastille rouge pour les matchs live */}
             {isLive && (
               <span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-2 animate-pulse" />
             )}
             {statusText}
           </p>
-          {/* ✅ Indicateur de refresh */}
           {isLive && (
             <p className="text-xs text-gray-600 mt-1">Mise à jour toutes les 30s</p>
           )}
         </div>
 
-        {/* Équipes + score */}
+        {/* ── Équipes + score avec étoiles ── */}
         <div className="flex items-center justify-between gap-4">
 
-          <Link href={`/equipe/${match.idHomeTeam}`}
-            className="flex flex-col items-center gap-3 flex-1 hover:opacity-80 transition">
-            <img src={match.strHomeTeamBadge} alt={match.strHomeTeam}
-              className="w-20 h-20 object-contain" />
-            <span className="font-semibold text-center text-sm md:text-base">
-              {match.strHomeTeam}
-            </span>
-          </Link>
+          {/* Équipe domicile : étoile à gauche, logo + nom à droite */}
+          <div className="flex items-center gap-3 flex-1 justify-start">
+            {/* Étoile favori équipe domicile */}
+            <FavoriteButton
+              item={{
+                id: match.idHomeTeam,
+                type: "team",
+                name: match.strHomeTeam,
+                logo: match.strHomeTeamBadge,
+              }}
+              size="md"
+            />
+            <Link
+              href={`/equipe/${match.idHomeTeam}`}
+              className="flex flex-col items-center gap-2 hover:opacity-80 transition"
+            >
+              <img
+                src={match.strHomeTeamBadge}
+                alt={match.strHomeTeam}
+                className="w-20 h-20 object-contain"
+              />
+              <span className="font-semibold text-center text-sm md:text-base">
+                {match.strHomeTeam}
+              </span>
+            </Link>
+          </div>
 
+          {/* Score central */}
           <div className="text-center flex-shrink-0">
             {hasScore ? (
               <div className={`text-5xl font-black tracking-tight ${isLive ? 'text-white' : ''}`}>
@@ -255,14 +249,32 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
             )}
           </div>
 
-          <Link href={`/equipe/${match.idAwayTeam}`}
-            className="flex flex-col items-center gap-3 flex-1 hover:opacity-80 transition">
-            <img src={match.strAwayTeamBadge} alt={match.strAwayTeam}
-              className="w-20 h-20 object-contain" />
-            <span className="font-semibold text-center text-sm md:text-base">
-              {match.strAwayTeam}
-            </span>
-          </Link>
+          {/* Équipe extérieure : logo + nom à gauche, étoile à droite */}
+          <div className="flex items-center gap-3 flex-1 justify-end">
+            <Link
+              href={`/equipe/${match.idAwayTeam}`}
+              className="flex flex-col items-center gap-2 hover:opacity-80 transition"
+            >
+              <img
+                src={match.strAwayTeamBadge}
+                alt={match.strAwayTeam}
+                className="w-20 h-20 object-contain"
+              />
+              <span className="font-semibold text-center text-sm md:text-base">
+                {match.strAwayTeam}
+              </span>
+            </Link>
+            {/* Étoile favori équipe extérieure */}
+            <FavoriteButton
+              item={{
+                id: match.idAwayTeam,
+                type: "team",
+                name: match.strAwayTeam,
+                logo: match.strAwayTeamBadge,
+              }}
+              size="md"
+            />
+          </div>
         </div>
 
         {match.strVenue && (

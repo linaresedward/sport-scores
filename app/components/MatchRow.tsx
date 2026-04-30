@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import FavoriteButton from './FavoriteButton'
 import type { Match } from '@/lib/sportsdb'
 
 interface Props {
@@ -40,8 +41,8 @@ function StatusBadge({ status, time }: { status: string; time?: string }) {
 
 export default function MatchRow({ match }: Props) {
   const hasScore = match.intHomeScore !== null && match.intAwayScore !== null
-  const isLive = LIVE_STATUSES.includes(match.strStatus)
-  const time = match.strTime?.slice(0, 5) ?? ''
+  const isLive   = LIVE_STATUSES.includes(match.strStatus)
+  const time     = match.strTime?.slice(0, 5) ?? ''
 
   return (
     <Link
@@ -62,15 +63,18 @@ export default function MatchRow({ match }: Props) {
 
         {/* Équipe domicile */}
         <div className="flex items-center gap-2">
+          <FavoriteButton
+            item={{
+              id: match.idHomeTeam,
+              type: "team",
+              name: match.strHomeTeam,
+              logo: match.strHomeTeamBadge ?? undefined,
+            }}
+            size="sm"
+          />
           {match.strHomeTeamBadge ? (
             <div className="w-5 h-5 shrink-0 relative">
-              <Image
-                src={match.strHomeTeamBadge}
-                alt=""
-                fill
-                className="object-contain"
-                unoptimized
-              />
+              <Image src={match.strHomeTeamBadge} alt="" fill className="object-contain" unoptimized />
             </div>
           ) : (
             <div className="w-5 h-5 shrink-0 rounded-full bg-gray-200" />
@@ -80,15 +84,18 @@ export default function MatchRow({ match }: Props) {
 
         {/* Équipe extérieure */}
         <div className="flex items-center gap-2">
+          <FavoriteButton
+            item={{
+              id: match.idAwayTeam,
+              type: "team",
+              name: match.strAwayTeam,
+              logo: match.strAwayTeamBadge ?? undefined,
+            }}
+            size="sm"
+          />
           {match.strAwayTeamBadge ? (
             <div className="w-5 h-5 shrink-0 relative">
-              <Image
-                src={match.strAwayTeamBadge}
-                alt=""
-                fill
-                className="object-contain"
-                unoptimized
-              />
+              <Image src={match.strAwayTeamBadge} alt="" fill className="object-contain" unoptimized />
             </div>
           ) : (
             <div className="w-5 h-5 shrink-0 rounded-full bg-gray-200" />
@@ -100,20 +107,16 @@ export default function MatchRow({ match }: Props) {
       {/* Colonne scores */}
       {hasScore && (
         <div className="shrink-0 flex flex-col items-end gap-2">
-          <span className={`text-sm font-bold tabular-nums ${
-            isLive ? 'text-green-600' : 'text-gray-900'
-          }`}>
+          <span className={`text-sm font-bold tabular-nums ${isLive ? 'text-green-600' : 'text-gray-900'}`}>
             {match.intHomeScore}
           </span>
-          <span className={`text-sm font-bold tabular-nums ${
-            isLive ? 'text-green-600' : 'text-gray-900'
-          }`}>
+          <span className={`text-sm font-bold tabular-nums ${isLive ? 'text-green-600' : 'text-gray-900'}`}>
             {match.intAwayScore}
           </span>
         </div>
       )}
 
-      {/* Flèche indicateur cliquable */}
+      {/* Flèche */}
       <div className="shrink-0 text-gray-300 text-xs">›</div>
     </Link>
   )

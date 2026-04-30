@@ -1,25 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { RoundBlock } from "./page";
-
-type Event = {
-  idEvent: string;
-  strHomeTeam: string;
-  strAwayTeam: string;
-  strHomeTeamBadge: string;
-  strAwayTeamBadge: string;
-  intHomeScore: string | null;
-  intAwayScore: string | null;
-  strTimestamp: string;
-  dateEvent: string;
-  strTime: string;
-  strStatus: string;
-  strProgress: string | null;
-  intRound: string | null;
-  idHomeTeam: string;
-  idAwayTeam: string;
-};
+import { useT } from "@/lib/i18n";
+import { RoundBlock } from "./RoundBlock";
+import type { Event } from "./RoundBlock";
 
 export default function ShowMoreResults({
   groups,
@@ -29,6 +13,7 @@ export default function ShowMoreResults({
   leagueId?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const { t } = useT();
 
   return (
     <div>
@@ -51,7 +36,7 @@ export default function ShowMoreResults({
           style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
           <polyline points="6 9 12 15 18 9" />
         </svg>
-        {open ? "Masquer les phases précédentes" : `Voir les phases précédentes (${groups.length})`}
+        {open ? t("show_less") : `${t("show_more")} (${groups.length})`}
       </button>
     </div>
   );
