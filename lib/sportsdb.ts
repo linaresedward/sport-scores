@@ -43,6 +43,8 @@ export interface Match {
   strEvent: string
   strHomeTeam: string
   strAwayTeam: string
+  idHomeTeam: string
+  idAwayTeam: string
   intHomeScore: string | null
   intAwayScore: string | null
   strStatus: string
