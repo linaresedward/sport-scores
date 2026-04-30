@@ -291,7 +291,7 @@ function FavCard({
 
         {!loading && current.length === 0 && (
           <div style={{ padding: "20px", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>
-            {tab === "upcoming" ? t("no_upcoming") : t("no_results")}
+            {tab === "upcoming" ? t("no_upcoming") : t("no_past")}
           </div>
         )}
 
