@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import FavoriteButton from './FavoriteButton'
+import MatchFavoriteButton from './MatchFavoriteButton'
 import type { Match } from '@/lib/sportsdb'
 
 interface Props {
@@ -115,6 +116,20 @@ export default function MatchRow({ match }: Props) {
           </span>
         </div>
       )}
+
+      {/* ⭐ Bouton favori match */}
+      <MatchFavoriteButton
+        match={{
+          id: match.idEvent,
+          homeTeam: match.strHomeTeam,
+          awayTeam: match.strAwayTeam,
+          homeLogo: match.strHomeTeamBadge ?? undefined,
+          awayLogo: match.strAwayTeamBadge ?? undefined,
+          league: match.strLeague ?? "",
+          date: match.dateEvent ?? "",
+        }}
+        size={16}
+      />
 
       {/* Flèche */}
       <div className="shrink-0 text-gray-300 text-xs">›</div>

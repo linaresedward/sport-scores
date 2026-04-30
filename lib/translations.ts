@@ -88,6 +88,7 @@ export const translations = {
     no_past:             "Aucun résultat disponible",
     loading:             "Chargement",
     see_all:             "Voir tout",
+    pinned_matches: "Matchs épinglés",
   },
   en: {
     football:            "Football",
@@ -178,6 +179,7 @@ export const translations = {
     no_past:             "No results available",
     loading:             "Loading",
     see_all:             "See all",
+    pinned_matches: "Pinned matches",
   },
 } as const;
 
