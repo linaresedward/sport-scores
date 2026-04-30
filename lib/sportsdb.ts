@@ -23,7 +23,6 @@ export const ALLOWED_LEAGUES = new Set([
   'UEFA Champions League',
 ])
 
-// Ligues affichées en premier (ordre de priorité)
 const PRIORITY_LEAGUES = [
   'UEFA Champions League',
   'UEFA Europa League',
@@ -58,18 +57,54 @@ export interface Match {
   intMinute?: string | null
 }
 
+// ─── Helpers ──────────────────────────────────────────────
+function getTodayStr(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
+function getCacheOption(dateStr: string): RequestInit {
+  const today = getTodayStr()
+  if (dateStr === today) {
+    // Aujourd'hui : revalidation toutes les 60s (matchs live)
+    return { next: { revalidate: 60 } }
+  }
+  // Hier ou demain : revalidation toutes les 10min
+  return { next: { revalidate: 600 } }
+}
+
+function sortGrouped(grouped: Record<string, Match[]>): Record<string, Match[]> {
+  const sorted: Record<string, Match[]> = {}
+
+  for (const priority of PRIORITY_LEAGUES) {
+    const key = Object.keys(grouped).find(k =>
+      k.toLowerCase().includes(priority.toLowerCase()) ||
+      priority.toLowerCase().includes(k.toLowerCase())
+    )
+    if (key && grouped[key]) {
+      sorted[key] = grouped[key]
+      delete grouped[key]
+    }
+  }
+
+  for (const league of Object.keys(grouped).sort()) {
+    sorted[league] = grouped[league]
+  }
+
+  return sorted
+}
+
+// ─── Fonction principale ───────────────────────────────────
 export async function getAllMatchesByDate(
   dateStr: string
 ): Promise<Record<string, Match[]>> {
   try {
     const url = `${BASE_URL}/eventsday.php?d=${dateStr}&s=Soccer`
-    const res = await fetch(url, { cache: 'no-store' })
+    const res = await fetch(url, getCacheOption(dateStr))
     if (!res.ok) return {}
     const data = await res.json()
     const events: Match[] = data.events || []
     if (events.length === 0) return {}
 
-    // Grouper par ligue — SANS filtre
     const grouped: Record<string, Match[]> = {}
     for (const match of events) {
       const league = match.strLeague || 'Autre'
@@ -77,40 +112,19 @@ export async function getAllMatchesByDate(
       grouped[league].push(match)
     }
 
-    // Trier : prioritaires en premier, reste après par ordre alphabétique
-    const sorted: Record<string, Match[]> = {}
-
-    // 1. Ligues prioritaires dans l'ordre défini
-    for (const priority of PRIORITY_LEAGUES) {
-      const key = Object.keys(grouped).find(k =>
-        k.toLowerCase().includes(priority.toLowerCase()) ||
-        priority.toLowerCase().includes(k.toLowerCase())
-      )
-      if (key && grouped[key]) {
-        sorted[key] = grouped[key]
-        delete grouped[key]
-      }
-    }
-
-    // 2. Reste des ligues triées alphabétiquement
-    const remaining = Object.keys(grouped).sort()
-    for (const league of remaining) {
-      sorted[league] = grouped[league]
-    }
-
-    return sorted
+    return sortGrouped(grouped)
   } catch (err) {
     console.error('Erreur getAllMatchesByDate:', err)
     return {}
   }
 }
 
-// ─── Fonctions legacy conservées ─────────────────────────────────
+// ─── Fonctions legacy ─────────────────────────────────────
 export async function getRecentMatches(leagueId: string): Promise<Match[]> {
   try {
     const res = await fetch(
       `${BASE_URL}/eventspastleague.php?id=${leagueId}`,
-      { next: { revalidate: 60 } }
+      { next: { revalidate: 600 } }
     )
     if (!res.ok) return []
     const data = await res.json()
@@ -122,7 +136,7 @@ export async function getUpcomingMatches(leagueId: string): Promise<Match[]> {
   try {
     const res = await fetch(
       `${BASE_URL}/eventsnextleague.php?id=${leagueId}`,
-      { next: { revalidate: 60 } }
+      { next: { revalidate: 600 } }
     )
     if (!res.ok) return []
     const data = await res.json()
@@ -131,7 +145,7 @@ export async function getUpcomingMatches(leagueId: string): Promise<Match[]> {
 }
 
 export async function getTodayMatches(): Promise<Match[]> {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getTodayStr()
   const grouped = await getAllMatchesByDate(today)
   return Object.values(grouped).flat()
 }

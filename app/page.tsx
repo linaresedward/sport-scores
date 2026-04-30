@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import LeagueSection from './components/LeagueSection'
+import MatchSkeleton from './components/MatchSkeleton'
 import { getAllMatchesByDate, Match } from '../lib/sportsdb'
+import { useT } from '@/lib/i18n'
 
 const LIVE_STATUSES = ["In Progress", "HT", "1H", "2H", "ET", "P", "LIVE"]
 
@@ -13,13 +15,6 @@ function formatDate(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-function getDateLabel(offset: number): string {
-  if (offset === -1) return 'Hier'
-  if (offset === 0) return "Aujourd'hui"
-  if (offset === 1) return 'Demain'
-  return ''
-}
-
 function getDateWithOffset(offset: number): Date {
   const d = new Date()
   d.setDate(d.getDate() + offset)
@@ -27,6 +22,7 @@ function getDateWithOffset(offset: number): Date {
 }
 
 export default function HomePage() {
+  const { t } = useT()
   const [offset, setOffset] = useState(0)
   const [matchesByLeague, setMatchesByLeague] = useState<Record<string, Match[]>>({})
   const [loading, setLoading] = useState(true)
@@ -47,34 +43,29 @@ export default function HomePage() {
     if (showLoading) setLoading(false)
   }, [offset])
 
-  // Chargement initial + changement de date
-  useEffect(() => {
-    load(true)
-  }, [load])
+  useEffect(() => { load(true) }, [load])
 
-  // Rafraîchissement auto toutes les 60s si matchs live
+  // Refresh auto toutes les 60s si matchs live aujourd'hui
   useEffect(() => {
     const allMatches = Object.values(matchesByLeague).flat()
-    const hasLive = allMatches.some(m => LIVE_STATUSES.includes((m as any).strStatus || ''))
+    const hasLive = allMatches.some(m => LIVE_STATUSES.includes(m.strStatus || ''))
     if (!hasLive || offset !== 0) return
-
-    const interval = setInterval(() => {
-      load(false) // refresh silencieux sans spinner
-    }, 60000)
-
+    const interval = setInterval(() => load(false), 60000)
     return () => clearInterval(interval)
   }, [matchesByLeague, offset, load])
 
   const leagues = Object.keys(matchesByLeague)
   const allMatches = Object.values(matchesByLeague).flat()
-  const hasLive = allMatches.some(m => LIVE_STATUSES.includes((m as any).strStatus || ''))
+  const hasLive = allMatches.some(m => LIVE_STATUSES.includes(m.strStatus || ''))
+
+  const DATE_LABELS = [t("yesterday"), t("today"), t("tomorrow")]
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-6">
 
       {/* Navigation par date */}
       <div className="flex items-center justify-between mb-6 bg-white rounded-xl shadow-sm p-3">
-        {[-1, 0, 1].map((o) => {
+        {[-1, 0, 1].map((o, i) => {
           const d = getDateWithOffset(o)
           const isActive = o === offset
           return (
@@ -87,12 +78,10 @@ export default function HomePage() {
                   : 'text-gray-500 hover:bg-gray-100'
               }`}
             >
-              <div className="text-xs font-medium">{getDateLabel(o)}</div>
+              <div className="text-xs font-medium">{DATE_LABELS[i]}</div>
               <div className="text-xs opacity-75 capitalize">
                 {d.toLocaleDateString('fr-FR', {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
+                  weekday: 'short', day: 'numeric', month: 'short',
                 })}
               </div>
             </button>
@@ -100,7 +89,7 @@ export default function HomePage() {
         })}
       </div>
 
-      {/* Bandeau LIVE + heure de refresh */}
+      {/* Bandeau LIVE */}
       {hasLive && !loading && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -113,18 +102,17 @@ export default function HomePage() {
               animation: 'livePulse 1.5s ease-in-out infinite',
             }} />
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#dc2626' }}>
-              MATCHS EN DIRECT
+              {t("live_matches")}
             </span>
           </div>
           {lastRefresh && (
             <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-              Mis à jour à {lastRefresh.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              {t("updated_at")} {lastRefresh.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
         </div>
       )}
 
-      {/* Animation CSS pour le point live */}
       <style>{`
         @keyframes livePulse {
           0%, 100% { opacity: 1; transform: scale(1); }
@@ -134,14 +122,11 @@ export default function HomePage() {
 
       {/* Contenu */}
       {loading ? (
-        <div className="text-center py-16 text-gray-400">
-          <div className="text-3xl mb-3">⚽</div>
-          <p>Chargement des matchs...</p>
-        </div>
+        <MatchSkeleton />
       ) : leagues.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <div className="text-3xl mb-3">📅</div>
-          <p>Aucun match trouvé pour le {currentDate}</p>
+          <p>{t("no_matches")}</p>
           <p className="text-sm mt-1">Essayez une autre date</p>
         </div>
       ) : (
