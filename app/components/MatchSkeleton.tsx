@@ -1,5 +1,7 @@
 // app/components/MatchSkeleton.tsx
 export default function MatchSkeleton() {
+  const widths = ["75%", "60%", "80%"]
+
   return (
     <div style={{ maxWidth: "672px", margin: "0 auto", padding: "0 16px" }}>
       {/* Skeleton navigation date */}
@@ -55,12 +57,12 @@ export default function MatchSkeleton() {
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
                 <div style={{
                   height: "12px", borderRadius: "4px", background: "#f1f5f9",
-                  width: `${60 + Math.random() * 30}%`,
+                  width: widths[match],
                   animation: "shimmer 1.5s ease-in-out infinite",
                 }} />
                 <div style={{
                   height: "12px", borderRadius: "4px", background: "#f1f5f9",
-                  width: `${50 + Math.random() * 30}%`,
+                  width: widths[(match + 1) % 3],
                   animation: "shimmer 1.5s ease-in-out infinite",
                 }} />
               </div>
