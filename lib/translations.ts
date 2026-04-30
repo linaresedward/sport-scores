@@ -82,6 +82,12 @@ export const translations = {
     prelim:              "Tours préliminaires",
     matchday:            "Journée",
     league_phase:        "Phase de ligue",
+    upcoming_matches: "Prochains",
+past_results: "Résultats",
+no_upcoming: "Aucun match à venir",
+no_results: "Aucun résultat disponible",
+loading: "Chargement",
+see_all: "Voir tout",
   },
   en: {
     football:            "Football",
@@ -166,6 +172,12 @@ export const translations = {
     prelim:              "Preliminary rounds",
     matchday:            "Matchday",
     league_phase:        "League phase",
+    upcoming_matches: "Upcoming",
+past_results: "Results",
+no_upcoming: "No upcoming matches",
+no_results: "No results available",
+loading: "Loading",
+see_all: "See all",
   },
 } as const;
 
