@@ -19,6 +19,7 @@ export interface FavoriteMatch {
   awayLogo?: string;
   league: string;
   date: string;
+  time?: string; // ← nouveau : heure du match ex: "19:00"
 }
 
 const STORAGE_KEY       = "sport-scores-favorites";

@@ -200,6 +200,7 @@ export function MatchRowLigue({ ev, upcoming }: { ev: Event; upcoming?: boolean 
             awayLogo: ev.strAwayTeamBadge || undefined,
             league: ev.strLeague || "",
             date: ev.dateEvent,
+            time: ev.strTime?.slice(0, 5) ?? undefined,
           }}
           size={16}
         />

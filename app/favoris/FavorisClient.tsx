@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useFavorites } from "@/hooks/useFavorites";
+import MatchNotifyButton from "@/app/components/MatchNotifyButton";
 import { useT } from "@/lib/i18n";
 
 const BASE = "https://www.thesportsdb.com/api/v1/json/139695";
@@ -244,7 +245,7 @@ function FavCard({ fav, type, onRemove, lang }: {
 
 // ─── Composant : carte match favori ───────────────────────
 function FavMatchCard({ match, onRemove, lang }: {
-  match: { id: string; homeTeam: string; awayTeam: string; homeLogo?: string; awayLogo?: string; league: string; date: string };
+  match: { id: string; homeTeam: string; awayTeam: string; homeLogo?: string; awayLogo?: string; league: string; date: string; time?: string };
   onRemove: () => void;
   lang: string;
 }) {
@@ -292,6 +293,15 @@ function FavMatchCard({ match, onRemove, lang }: {
             {live.status === "Match Finished" && (
               <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748b" }}>FT</span>
             )}
+            <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+              <MatchNotifyButton
+                matchId={match.id}
+                homeTeam={match.homeTeam}
+                awayTeam={match.awayTeam}
+                matchDate={match.date}
+                matchTime={match.time}
+              />
+            </div>
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
               style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "#cbd5e1", padding: "2px 6px", lineHeight: 1 }}

@@ -127,6 +127,7 @@ export default function MatchRow({ match }: Props) {
           awayLogo: match.strAwayTeamBadge ?? undefined,
           league: match.strLeague ?? "",
           date: match.dateEvent ?? "",
+          time: match.strTime?.slice(0, 5) ?? undefined,
         }}
         size={16}
       />
