@@ -4,7 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import SearchBar from "./SearchBar";
 import LangToggle from "./LangToggle";
+import MobileMenu from "./MobileMenu";
 import { useT } from "@/lib/i18n";
+
+const SPORTS = [
+  { label: "Football",   icon: "⚽", href: "/" },
+  { label: "Tennis",     icon: "🎾", href: "/tennis" },
+  { label: "Basketball", icon: "🏀", href: "/basketball" },
+];
 
 export default function Topbar() {
   const pathname = usePathname();
@@ -15,38 +22,42 @@ export default function Topbar() {
     pathname.startsWith("/basketball") ? "/basketball" :
     "/";
 
-  const SPORTS = [
-    { label: t("football"),   icon: "⚽", href: "/" },
-    { label: t("tennis"),     icon: "🎾", href: "/tennis" },
-    { label: t("basketball"), icon: "🏀", href: "/basketball" },
-  ];
-
   return (
-    <header className="topbar" style={{ gap: "16px" }}>
+    <header className="topbar" style={{ gap: "12px" }}>
+
+      {/* Bouton hamburger — mobile uniquement */}
+      <MobileMenu />
+
+      {/* Logo */}
       <div className="topbar__logo">
         <div className="topbar__logo-dot" />
         <span>SportScores</span>
       </div>
 
-      <nav className="topbar__sports">
-        {SPORTS.map((sport) => (
+      {/* Navigation sports — desktop uniquement */}
+      <nav className="topbar__sports topbar__sports--desktop">
+        {SPORTS.map(sport => (
           <Link
             key={sport.href}
             href={sport.href}
             className={`topbar__sport-tab ${activeSport === sport.href ? "topbar__sport-tab--active" : ""}`}
           >
             <span className="topbar__sport-icon">{sport.icon}</span>
-            {sport.label}
+            {t(sport.label.toLowerCase() as any)}
           </Link>
         ))}
       </nav>
 
+      {/* Barre de recherche */}
       <SearchBar />
 
+      {/* Lang toggle */}
       <LangToggle />
 
+      {/* Favoris — desktop uniquement */}
       <Link
         href="/favoris"
+        className="topbar__favorites--desktop"
         style={{
           display: "flex", alignItems: "center", gap: "6px",
           fontSize: "13px", fontWeight: 600, flexShrink: 0,
