@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import FavoriteButton from '../../components/FavoriteButton'
+import { computeMatchTimer } from '@/lib/matchTimer'
 
 const BASE = "https://www.thesportsdb.com/api/v1/json/139695"
 
@@ -62,27 +63,6 @@ function isReallyLive(status: string, dateStr: string, timeStr: string): boolean
   return diffHours < 4
 }
 
-function statusLabel(match: MatchEvent) {
-  const live = isReallyLive(match.strStatus, match.dateEvent, match.strTime)
-  if (!live && match.strStatus !== 'NS') {
-    return { label: 'Terminé', color: 'text-gray-400', isLive: false }
-  }
-  const minute = match.intMinute ? ` • ${match.intMinute}'` : ''
-  const map: Record<string, string> = {
-    'In Progress': `EN DIRECT${minute}`,
-    '1H': `1ère MT${minute}`,
-    '2H': `2ème MT${minute}`,
-    'HT': 'Mi-temps',
-    'ET': `Prol.${minute}`,
-    'P': 'Tirs au but',
-    'NS': 'À venir',
-  }
-  const label = map[match.strStatus] ?? `LIVE${minute}`
-  if (match.strStatus === 'NS') return { label, color: 'text-blue-400', isLive: false }
-  if (match.strStatus === 'HT') return { label, color: 'text-yellow-400', isLive: true }
-  return { label, color: 'text-red-400', isLive: true }
-}
-
 function eventIcon(type: string) {
   const t = type.toLowerCase()
   if (t.includes('goal'))         return '⚽'
@@ -102,6 +82,101 @@ function extractMinute(ev: TimelineEvent): string {
 
 function cleanEventLabel(detail: string): string {
   return detail?.replace(/^\d+'\s*[-–]?\s*/i, '').trim() ?? ''
+}
+
+function MatchTimerDisplay({ timer }: { timer: ReturnType<typeof computeMatchTimer> }) {
+
+  if (timer.period === "upcoming") {
+    return (
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: "30px", fontWeight: 700, color: "#2563eb" }}>{timer.label}</div>
+        <div style={{ fontSize: "11px", color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginTop: "2px" }}>Coup d'envoi</div>
+      </div>
+    )
+  }
+
+  if (timer.period === "finished") {
+    return (
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: "30px", fontWeight: 700, color: "#64748b" }}>FT</div>
+        <div style={{ fontSize: "11px", color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginTop: "2px" }}>Terminé</div>
+      </div>
+    )
+  }
+
+  if (timer.period === "half_time") {
+    return (
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: "30px", fontWeight: 700, color: "#f59e0b" }}>HT</div>
+        <div style={{ fontSize: "11px", color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginTop: "2px" }}>Mi-temps</div>
+      </div>
+    )
+  }
+
+  if (timer.period === "penalties") {
+    return (
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: "30px", fontWeight: 700, color: "#f97316" }}>TAB</div>
+        <div style={{ fontSize: "11px", color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginTop: "2px" }}>Tirs au but</div>
+      </div>
+    )
+  }
+
+  // ── LIVE avec ou sans minute ───────────────────────────
+  const isExtra = timer.period === "extra_time"
+  const color      = isExtra ? "#f59e0b" : "#ef4444"
+  const trackColor = isExtra ? "#fef3c7" : "#fee2e2"
+
+  const periodLabel: Record<string, string> = {
+    first_half:   "1ère mi-temps",
+    second_half:  "2ème mi-temps",
+    extra_time:   "Prolongations",
+    live_unknown: "En direct",
+  }
+
+  return (
+    <div style={{ maxWidth: "200px", margin: "0 auto" }}>
+
+      {/* Minute (API uniquement) ou LIVE */}
+      {timer.minute !== null ? (
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: "2px", marginBottom: "4px" }}>
+          <span style={{ fontSize: "38px", fontWeight: 700, color, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+            {timer.minute}
+          </span>
+          <span style={{ fontSize: "22px", fontWeight: 700, color }}>′</span>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", marginBottom: "4px" }}>
+          <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: color, display: "inline-block", animation: "livePulse 1.2s infinite" }} />
+          <span style={{ fontSize: "22px", fontWeight: 700, color }}>LIVE</span>
+        </div>
+      )}
+
+      {/* Label période */}
+      <div style={{ fontSize: "11px", color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", textAlign: "center", marginBottom: "8px" }}>
+        {periodLabel[timer.period] ?? "En direct"}
+      </div>
+
+      {/* Barre de progression — seulement si minute connue */}
+      {timer.minute !== null && (
+        <>
+          <div style={{ height: "3px", background: trackColor, borderRadius: "999px", overflow: "hidden" }}>
+            <div style={{
+              height: "100%", borderRadius: "999px", background: color,
+              width: `${Math.min(timer.progress, 100)}%`,
+              transition: "width 1s ease",
+            }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "3px" }}>
+            <span style={{ fontSize: "10px", color: "#94a3b8" }}>{timer.periodStart}′</span>
+            <span style={{ fontSize: "10px", color: "#94a3b8" }}>{timer.periodEnd}′</span>
+          </div>
+        </>
+      )}
+
+      <style>{`@keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}`}</style>
+    </div>
+  )
 }
 
 export default function MatchDetailClient({ matchId }: { matchId: string }) {
@@ -167,7 +242,8 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
     <div className="text-center py-20 text-gray-400">Match introuvable</div>
   )
 
-  const { label: statusText, color: statusColor, isLive } = statusLabel(match)
+  const timer = computeMatchTimer(match.strStatus, match.dateEvent, match.strTime, match.intMinute)
+  const isLive = timer.isLive
   const hasScore   = match.intHomeScore !== null && match.intAwayScore !== null
   const homeLineup = lineup.filter(p => p.strHome === 'Home')
   const awayLineup = lineup.filter(p => p.strHome === 'Away')
@@ -185,17 +261,12 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
       {/* ── Header match ── */}
       <div className="bg-gray-900 rounded-2xl p-6 mb-6 border border-gray-800">
 
-        {/* Ligue + statut */}
+        {/* Ligue + statut — Option B chrono */}
         <div className="text-center mb-6">
-          <p className="text-gray-400 text-sm">{match.strLeague}</p>
-          <p className={`font-bold text-sm mt-1 ${statusColor} ${isLive ? 'animate-pulse' : ''}`}>
-            {isLive && (
-              <span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-2 animate-pulse" />
-            )}
-            {statusText}
-          </p>
+          <p className="text-gray-400 text-sm mb-4">{match.strLeague}</p>
+          <MatchTimerDisplay timer={timer} />
           {isLive && (
-            <p className="text-xs text-gray-600 mt-1">Mise à jour toutes les 30s</p>
+            <p className="text-xs text-gray-600 mt-3">Mise à jour toutes les 30s</p>
           )}
         </div>
 
