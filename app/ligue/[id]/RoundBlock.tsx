@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { translations } from "@/lib/translations";
 import { useT } from "@/lib/i18n";
+import MatchFavoriteButton from "@/app/components/MatchFavoriteButton";
 
 type Event = {
   idEvent: string;
@@ -21,6 +21,7 @@ type Event = {
   intRound: string | null;
   idHomeTeam: string;
   idAwayTeam: string;
+  strLeague?: string;
 };
 
 export type { Event };
@@ -108,69 +109,101 @@ export function MatchRowLigue({ ev, upcoming }: { ev: Event; upcoming?: boolean 
   const awayWin = hasScore && parseInt(ev.intAwayScore!) > parseInt(ev.intHomeScore!);
 
   return (
-    <Link href={`/match/${ev.idEvent}`} className="match-row-link"
-      style={{
-        display: "grid", gridTemplateColumns: "80px 1fr 40px",
-        alignItems: "center", padding: "10px 16px", gap: "12px",
-        textDecoration: "none", color: "inherit",
-      }}
-    >
-      <div>
-        {live ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#ef4444" }} />
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#ef4444" }}>
-              {ev.strStatus === "HT" ? t("halftime") : ev.strProgress || t("live")}
-            </span>
-          </div>
-        ) : (
-          <div>
-            <div style={{ fontSize: "11px", color: "#94a3b8" }} suppressHydrationWarning>
-              {date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
-            </div>
-            <div style={{ fontSize: "12px", fontWeight: 600, color: upcoming ? "#2563eb" : "#64748b" }}
-              suppressHydrationWarning>
-              {date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-            </div>
-          </div>
-        )}
-      </div>
+    <div style={{ display: "flex", alignItems: "center" }}>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {ev.strHomeTeamBadge && (
-            <Image src={ev.strHomeTeamBadge} alt={ev.strHomeTeam}
-              width={16} height={16} style={{ objectFit: "contain" }} unoptimized />
+      {/* Lien principal — toute la ligne sauf le bouton étoile */}
+      <Link
+        href={`/match/${ev.idEvent}`}
+        className="match-row-link"
+        style={{
+          flex: 1,
+          display: "grid",
+          gridTemplateColumns: "80px 1fr 40px",
+          alignItems: "center",
+          padding: "10px 16px",
+          gap: "12px",
+          textDecoration: "none",
+          color: "inherit",
+        }}
+      >
+        {/* Colonne date/statut */}
+        <div>
+          {live ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#ef4444" }} />
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#ef4444" }}>
+                {ev.strStatus === "HT" ? t("halftime") : ev.strProgress || t("live")}
+              </span>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: "11px", color: "#94a3b8" }} suppressHydrationWarning>
+                {date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+              </div>
+              <div
+                style={{ fontSize: "12px", fontWeight: 600, color: upcoming ? "#2563eb" : "#64748b" }}
+                suppressHydrationWarning
+              >
+                {date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              </div>
+            </div>
           )}
-          <span style={{ fontSize: "13px", fontWeight: homeWin ? 700 : 400, color: homeWin ? "#0f172a" : "#475569" }}>
-            {ev.strHomeTeam}
-          </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {ev.strAwayTeamBadge && (
-            <Image src={ev.strAwayTeamBadge} alt={ev.strAwayTeam}
-              width={16} height={16} style={{ objectFit: "contain" }} unoptimized />
-          )}
-          <span style={{ fontSize: "13px", fontWeight: awayWin ? 700 : 400, color: awayWin ? "#0f172a" : "#475569" }}>
-            {ev.strAwayTeam}
-          </span>
-        </div>
-      </div>
 
-      <div style={{ textAlign: "right" }}>
-        {hasScore ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+        {/* Colonne équipes */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {ev.strHomeTeamBadge && (
+              <Image src={ev.strHomeTeamBadge} alt={ev.strHomeTeam}
+                width={16} height={16} style={{ objectFit: "contain" }} unoptimized />
+            )}
             <span style={{ fontSize: "13px", fontWeight: homeWin ? 700 : 400, color: homeWin ? "#0f172a" : "#475569" }}>
-              {ev.intHomeScore}
-            </span>
-            <span style={{ fontSize: "13px", fontWeight: awayWin ? 700 : 400, color: awayWin ? "#0f172a" : "#475569" }}>
-              {ev.intAwayScore}
+              {ev.strHomeTeam}
             </span>
           </div>
-        ) : (
-          <span style={{ fontSize: "12px", color: "#cbd5e1" }}>–</span>
-        )}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {ev.strAwayTeamBadge && (
+              <Image src={ev.strAwayTeamBadge} alt={ev.strAwayTeam}
+                width={16} height={16} style={{ objectFit: "contain" }} unoptimized />
+            )}
+            <span style={{ fontSize: "13px", fontWeight: awayWin ? 700 : 400, color: awayWin ? "#0f172a" : "#475569" }}>
+              {ev.strAwayTeam}
+            </span>
+          </div>
+        </div>
+
+        {/* Colonne scores */}
+        <div style={{ textAlign: "right" }}>
+          {hasScore ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              <span style={{ fontSize: "13px", fontWeight: homeWin ? 700 : 400, color: homeWin ? "#0f172a" : "#475569" }}>
+                {ev.intHomeScore}
+              </span>
+              <span style={{ fontSize: "13px", fontWeight: awayWin ? 700 : 400, color: awayWin ? "#0f172a" : "#475569" }}>
+                {ev.intAwayScore}
+              </span>
+            </div>
+          ) : (
+            <span style={{ fontSize: "12px", color: "#cbd5e1" }}>–</span>
+          )}
+        </div>
+      </Link>
+
+      {/* ⭐ Bouton favori match — en dehors du Link */}
+      <div style={{ paddingRight: "12px", flexShrink: 0 }}>
+        <MatchFavoriteButton
+          match={{
+            id: ev.idEvent,
+            homeTeam: ev.strHomeTeam,
+            awayTeam: ev.strAwayTeam,
+            homeLogo: ev.strHomeTeamBadge || undefined,
+            awayLogo: ev.strAwayTeamBadge || undefined,
+            league: ev.strLeague || "",
+            date: ev.dateEvent,
+          }}
+          size={16}
+        />
       </div>
-    </Link>
+    </div>
   );
 }
