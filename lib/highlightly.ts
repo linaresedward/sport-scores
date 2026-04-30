@@ -105,37 +105,12 @@ export async function getMatchesByDate(
   dateStr: string
 ): Promise<Record<string, HMatch[]>> {
   try {
-    const today = new Date().toISOString().split("T")[0]
-    const revalidate = dateStr === today ? 30 : 600
-
-    const res = await fetch(
-      `${BASE}/matches?date=${dateStr}&timezone=Europe/Paris`,
-      {
-        headers: HEADERS,
-        next: { revalidate },
-      }
-    )
-
-    if (!res.ok) {
-      console.error("Highlightly error:", res.status)
-      return {}
-    }
-
-    const data = await res.json()
-    const matches: HMatch[] = data.data ?? []
-    if (matches.length === 0) return {}
-
-    // Grouper par ligue
-    const grouped: Record<string, HMatch[]> = {}
-    for (const match of matches) {
-      const leagueName = match.league?.name ?? "Autre"
-      if (!grouped[leagueName]) grouped[leagueName] = []
-      grouped[leagueName].push(match)
-    }
-
-    return sortGrouped(grouped)
+    // Appel via notre route API serveur (clé sécurisée)
+    const res = await fetch(`/api/matches?date=${dateStr}`)
+    if (!res.ok) return {}
+    return await res.json()
   } catch (err) {
-    console.error("Highlightly fetch error:", err)
+    console.error("getMatchesByDate error:", err)
     return {}
   }
 }
