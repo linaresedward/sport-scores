@@ -48,6 +48,20 @@ const LEAGUE_OVERRIDE: Record<string, { country: string; flag: string }> = {
   'Super League Basketball Women': { country: 'England', flag: '🇬🇧' },
 }
 
+// Ligues prioritaires affichées en premier
+const LEAGUE_PRIORITY: Record<string, number> = {
+  'NBA': 1,
+  'EuroLeague Basketball': 2,
+  'French LNB': 3,
+  'German BBL': 4,
+  'Turkish Basketbol Super Ligi': 5,
+  'Spanish ACB': 6,
+  'Italian Lega Basket': 7,
+  'BNXT League': 8,
+  'Chinese CBA': 9,
+  'Argentine LNB': 10,
+}
+
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0]
 }
@@ -102,7 +116,13 @@ function groupByLeague(events: SportEvent[]): LeagueGroup[] {
     const group = map.get(key)
     if (group) group.events.push(ev)
   }
-  return [...map.values()]
+  // Trier par priorité — ligues prioritaires en premier, le reste par ordre alphabétique
+  return [...map.values()].sort(function(a, b) {
+    const pa = LEAGUE_PRIORITY[a.name] ? LEAGUE_PRIORITY[a.name] : 99
+    const pb = LEAGUE_PRIORITY[b.name] ? LEAGUE_PRIORITY[b.name] : 99
+    if (pa !== pb) return pa - pb
+    return a.name.localeCompare(b.name)
+  })
 }
 
 function MatchRow({ ev, lang }: { ev: SportEvent; lang: string }) {
@@ -143,7 +163,6 @@ function MatchRow({ ev, lang }: { ev: SportEvent; lang: string }) {
 
       {/* Équipes */}
       <div style={{ flex: 1, minWidth: 0, borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>
-        {/* Domicile */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px 4px', borderBottom: '1px solid var(--border)' }}>
           {ev.strHomeTeamBadge
             ? <img src={ev.strHomeTeamBadge} style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }} />
@@ -154,7 +173,6 @@ function MatchRow({ ev, lang }: { ev: SportEvent; lang: string }) {
           </span>
           {homeWin && hasScore && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />}
         </div>
-        {/* Extérieur */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 8px' }}>
           {ev.strAwayTeamBadge
             ? <img src={ev.strAwayTeamBadge} style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }} />
@@ -269,9 +287,7 @@ export default function SportDayClient({
         .bk-row:hover { background: var(--bg-muted) !important; }
         .bk-quarter { display: flex; flex-direction: column; }
         .bk-score-col { display: flex; }
-        @media (max-width: 640px) {
-          .bk-quarter { display: none !important; }
-        }
+        @media (max-width: 640px) { .bk-quarter { display: none !important; } }
       `}</style>
 
       {/* Header */}
