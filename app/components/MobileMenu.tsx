@@ -4,110 +4,104 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useT } from "@/lib/i18n";
 
-const BASE = "https://www.thesportsdb.com/api/v1/json/139695";
+const PRIORITY_LEAGUES = [
+  { id: "17423",  name: "UEFA Champions League", countryFr: "UEFA",       countryEn: "UEFA",    logo: "https://r2.thesportsdb.com/images/media/league/badge/facv1u1742998896.png", darkBg: true },
+  { id: "19374",  name: "UEFA Europa League",    countryFr: "UEFA",       countryEn: "UEFA",    logo: "https://r2.thesportsdb.com/images/media/league/badge/mlsr7d1718774547.png", darkBg: true },
+  { id: "33973",  name: "Premier League",        countryFr: "Angleterre", countryEn: "England", logo: "https://highlightly.net/soccer/images/leagues/33973.png",  darkBg: false },
+  { id: "52695",  name: "Ligue 1",               countryFr: "France",     countryEn: "France",  logo: "https://highlightly.net/soccer/images/leagues/52695.png",  darkBg: false },
+  { id: "119924", name: "La Liga",               countryFr: "Espagne",    countryEn: "Spain",   logo: "https://highlightly.net/soccer/images/leagues/119924.png", darkBg: false },
+  { id: "58588",  name: "Bundesliga",            countryFr: "Allemagne",  countryEn: "Germany", logo: "https://highlightly.net/soccer/images/leagues/58588.png",  darkBg: false },
+  { id: "115669", name: "Serie A",               countryFr: "Italie",     countryEn: "Italy",   logo: "https://highlightly.net/soccer/images/leagues/115669.png", darkBg: false },
+]
 
-const PRIORITY_IDS = [
-  { id: "4480", name: "Champions League", country: "UEFA",       logo: "https://r2.thesportsdb.com/images/media/league/badge/facv1u1742998896.png", darkBg: true },
-  { id: "4481", name: "Europa League",    country: "UEFA",       logo: "https://r2.thesportsdb.com/images/media/league/badge/mlsr7d1718774547.png", darkBg: true },
-  { id: "4328", name: "Premier League",   country: "Angleterre", logo: "" },
-  { id: "4334", name: "Ligue 1",          country: "France",     logo: "" },
-  { id: "4335", name: "La Liga",          country: "Espagne",    logo: "" },
-  { id: "4331", name: "Bundesliga",       country: "Allemagne",  logo: "" },
-  { id: "4332", name: "Serie A",          country: "Italie",     logo: "" },
-];
-
-const PRIORITY_IDS_SET = new Set(PRIORITY_IDS.map(l => l.id));
+const PRIORITY_IDS = new Set(PRIORITY_LEAGUES.map(l => l.id))
 
 const SPORTS = [
-  { label: "Football",   icon: "⚽", href: "/" },
-  { label: "Tennis",     icon: "🎾", href: "/tennis" },
-  { label: "Basketball", icon: "🏀", href: "/basketball" },
-];
+  { key: "football",   icon: "⚽", href: "/" },
+  { key: "tennis",     icon: "🎾", href: "/tennis" },
+  { key: "basketball", icon: "🏀", href: "/basketball" },
+]
 
-type League = { id: string; name: string; country: string; logo: string; darkBg?: boolean };
+const COUNTRY_FR: Record<string, string> = {
+  "England": "Angleterre", "France": "France", "Spain": "Espagne",
+  "Germany": "Allemagne", "Italy": "Italie", "Portugal": "Portugal",
+  "Netherlands": "Pays-Bas", "Belgium": "Belgique", "Scotland": "Écosse",
+  "Turkey": "Turquie", "Brazil": "Brésil", "Argentina": "Argentine",
+  "Mexico": "Mexique", "USA": "États-Unis", "Japan": "Japon",
+  "Switzerland": "Suisse", "Austria": "Autriche", "Poland": "Pologne",
+  "Denmark": "Danemark", "Sweden": "Suède", "Norway": "Norvège",
+  "Romania": "Roumanie", "Hungary": "Hongrie", "Ireland": "Irlande",
+  "Saudi Arabia": "Arabie Saoudite", "Egypt": "Égypte",
+  "International": "International",
+}
+
+function translateCountry(name: string, lang: string): string {
+  if (lang === 'fr') return COUNTRY_FR[name] ?? name
+  return name
+}
+
+type League = { id: string; name: string; country: string; logo: string | null; darkBg?: boolean }
 
 export default function MobileMenu() {
-  const [open, setOpen]               = useState(false);
-  const [logos, setLogos]             = useState<Record<string, string>>({});
-  const [otherLeagues, setOtherLeagues] = useState<League[]>([]);
-  const [othersOpen, setOthersOpen]   = useState(false);
-  const [loading, setLoading]         = useState(false);
-  const router   = useRouter();
-  const pathname = usePathname();
-  const { t }    = useT();
+  const [open, setOpen]               = useState(false)
+  const [othersOpen, setOthersOpen]   = useState(false)
+  const [otherLeagues, setOtherLeagues] = useState<League[]>([])
+  const [loading, setLoading]         = useState(false)
+  const router   = useRouter()
+  const pathname = usePathname()
+  const { t, lang } = useT()
 
-  // Charger logos prioritaires + autres ligues du jour
   useEffect(() => {
-    async function loadAll() {
-      setLoading(true);
+    async function loadOthers() {
+      setLoading(true)
       try {
-        // Logos des ligues sans override
-        const missing = PRIORITY_IDS.filter(l => !l.logo);
-        const logoResults = await Promise.all(
-          missing.map(async l => {
-            try {
-              const res  = await fetch(`${BASE}/lookupleague.php?id=${l.id}`);
-              const data = await res.json();
-              return { id: l.id, logo: data.leagues?.[0]?.strBadge ?? "" };
-            } catch { return { id: l.id, logo: "" }; }
-          })
-        );
-        const map: Record<string, string> = {};
-        logoResults.forEach(r => { map[r.id] = r.logo; });
-        setLogos(map);
-
-        // Autres ligues du jour
-        const today = new Date().toISOString().split("T")[0];
-        const res   = await fetch(`${BASE}/eventsday.php?d=${today}&s=Soccer`);
-        const data  = await res.json();
-        const events: any[] = data.events || [];
-        const seen = new Map<string, League>();
-        for (const ev of events) {
-          if (!ev.idLeague || PRIORITY_IDS_SET.has(ev.idLeague) || seen.has(ev.idLeague)) continue;
-          seen.set(ev.idLeague, {
-            id:      ev.idLeague,
-            name:    ev.strLeague,
-            country: ev.strCountry || "International",
-            logo:    "",
-          });
+        const today = new Date().toISOString().split("T")[0]
+        const res   = await fetch(`/api/matches?date=${today}`)
+        if (!res.ok) return
+        const grouped: Record<string, any[]> = await res.json()
+        const seen = new Map<string, League>()
+        for (const [, matches] of Object.entries(grouped)) {
+          for (const match of matches) {
+            const leagueId = String(match.league?.id)
+            if (!leagueId || PRIORITY_IDS.has(leagueId) || seen.has(leagueId)) continue
+            seen.set(leagueId, {
+              id:      leagueId,
+              name:    match.league.name,
+              country: match.country?.name ?? "International",
+              logo:    match.league.logo ?? null,
+            })
+          }
         }
-        const others = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
-
-        // Logos des autres ligues
-        const otherLogos = await Promise.all(
-          others.map(async l => {
-            try {
-              const r = await fetch(`${BASE}/lookupleague.php?id=${l.id}`);
-              const d = await r.json();
-              return d.leagues?.[0]?.strBadge ?? "";
-            } catch { return ""; }
-          })
-        );
-        setOtherLeagues(others.map((l, i) => ({ ...l, logo: otherLogos[i] })));
+        setOtherLeagues([...seen.values()].sort((a, b) => a.name.localeCompare(b.name)))
       } catch (e) {
-        console.error(e);
+        console.error(e)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
     }
-    loadAll();
-  }, []);
+    loadOthers()
+  }, [])
 
-  useEffect(() => { setOpen(false); }, [pathname]);
-
+  useEffect(() => { setOpen(false) }, [pathname])
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
-  }, [open]);
+    document.body.style.overflow = open ? "hidden" : ""
+    return () => { document.body.style.overflow = "" }
+  }, [open])
 
-  function navigate(href: string) {
-    setOpen(false);
-    router.push(href);
-  }
+  function navigate(href: string) { setOpen(false); router.push(href) }
+
+  const priorityWithCountry = PRIORITY_LEAGUES.map(l => ({
+    id: l.id, name: l.name,
+    country: lang === 'fr' ? l.countryFr : l.countryEn,
+    logo: l.logo, darkBg: l.darkBg,
+  }))
+
+  const othersTranslated = otherLeagues.map(l => ({
+    ...l, country: translateCountry(l.country, lang),
+  }))
 
   return (
     <>
-      {/* Bouton hamburger */}
       <button onClick={() => setOpen(true)} className="mobile-menu-btn" aria-label="Menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -119,8 +113,6 @@ export default function MobileMenu() {
 
       {open && (
         <div className="mobile-menu-overlay">
-
-          {/* Header */}
           <div className="mobile-menu-header">
             <div className="topbar__logo">
               <div className="topbar__logo-dot" />
@@ -135,12 +127,11 @@ export default function MobileMenu() {
             </button>
           </div>
 
-          {/* Corps scrollable */}
           <div className="mobile-menu-body">
 
             {/* Sports */}
             <div className="mobile-menu-section">
-              <p className="mobile-menu-section-title">Sports</p>
+              <p className="mobile-menu-section-title">{t('sports')}</p>
               <div className="mobile-menu-sports">
                 {SPORTS.map(s => (
                   <button key={s.href} onClick={() => navigate(s.href)}
@@ -149,7 +140,7 @@ export default function MobileMenu() {
                     }`}
                   >
                     <span style={{ fontSize: 24 }}>{s.icon}</span>
-                    <span>{s.label}</span>
+                    <span>{t(s.key as any)}</span>
                   </button>
                 ))}
               </div>
@@ -157,57 +148,58 @@ export default function MobileMenu() {
 
             {/* Compétitions prioritaires */}
             <div className="mobile-menu-section">
-              <p className="mobile-menu-section-title">Compétitions</p>
-              {PRIORITY_IDS.map(league => {
-                const logo     = league.logo || logos[league.id] || "";
-                const isActive = pathname === `/ligue/${league.id}`;
-                return (
-                  <LeagueRow key={league.id} name={league.name} country={league.country}
-                    logo={logo} darkBg={league.darkBg} isActive={isActive}
-                    onClick={() => navigate(`/ligue/${league.id}`)} />
-                );
-              })}
+              <p className="mobile-menu-section-title">{t('competitions')}</p>
+              {priorityWithCountry.map(league => (
+                <LeagueRow key={league.id}
+                  name={league.name} country={league.country}
+                  logo={league.logo} darkBg={league.darkBg}
+                  isActive={pathname === `/ligue/${league.id}`}
+                  onClick={() => navigate(`/ligue/${league.id}`)}
+                />
+              ))}
             </div>
 
             {/* Autres ligues du jour */}
-            {otherLeagues.length > 0 && (
-              <div className="mobile-menu-section">
-                <button
-                  onClick={() => setOthersOpen(!othersOpen)}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    width: "100%", padding: "10px 12px",
-                    border: "none", borderRadius: "10px", background: "transparent",
-                    cursor: "pointer", color: "#64748b",
-                    fontSize: "11px", fontWeight: 700,
-                    letterSpacing: "0.06em", textTransform: "uppercase",
-                  }}
-                >
-                  <span>Autres ({otherLeagues.length})</span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-                    style={{ transform: othersOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
+            <div className="mobile-menu-section">
+              <button
+                onClick={() => setOthersOpen(!othersOpen)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  width: "100%", padding: "10px 12px",
+                  border: "none", borderRadius: "10px", background: "transparent",
+                  cursor: "pointer", color: "#64748b",
+                  fontSize: "11px", fontWeight: 700,
+                  letterSpacing: "0.06em", textTransform: "uppercase",
+                }}
+              >
+                <span>{t('others')} ({othersTranslated.length})</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ transform: othersOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
 
-                {othersOpen && (
-                  loading
-                    ? <p style={{ padding: "8px 12px", fontSize: 12, color: "#94a3b8" }}>Chargement…</p>
-                    : otherLeagues.map(l => (
-                        <LeagueRow key={l.id} name={l.name} country={l.country}
-                          logo={l.logo} isActive={pathname === `/ligue/${l.id}`}
-                          onClick={() => navigate(`/ligue/${l.id}`)} />
-                      ))
-                )}
-              </div>
-            )}
+              {othersOpen && (
+                loading
+                  ? <p style={{ padding: "8px 12px", fontSize: 12, color: "#94a3b8" }}>{t('loading')}…</p>
+                  : othersTranslated.map(l => (
+                      <LeagueRow key={l.id}
+                        name={l.name} country={l.country}
+                        logo={l.logo}
+                        isActive={pathname === `/ligue/${l.id}`}
+                        onClick={() => navigate(`/ligue/${l.id}`)}
+                      />
+                    ))
+              )}
+            </div>
 
             {/* Favoris */}
             <div className="mobile-menu-section">
               <LeagueRow
                 name={t("my_favorites")} country=""
-                logo="" emoji="⭐" logoStyle={{ background: "#fef9c3" }}
+                logo="" emoji="⭐"
+                logoStyle={{ background: "#fef9c3" }}
                 isActive={pathname === "/favoris"}
                 onClick={() => navigate("/favoris")}
               />
@@ -217,17 +209,15 @@ export default function MobileMenu() {
         </div>
       )}
     </>
-  );
+  )
 }
 
 function LeagueRow({ name, country, logo, darkBg, isActive, onClick, emoji, logoStyle }: {
-  name: string; country: string; logo: string; darkBg?: boolean;
-  isActive: boolean; onClick: () => void; emoji?: string; logoStyle?: React.CSSProperties;
+  name: string; country: string; logo: string | null; darkBg?: boolean
+  isActive: boolean; onClick: () => void; emoji?: string; logoStyle?: React.CSSProperties
 }) {
   return (
-    <button onClick={onClick}
-      className={`mobile-menu-league-item ${isActive ? "active" : ""}`}
-    >
+    <button onClick={onClick} className={`mobile-menu-league-item ${isActive ? "active" : ""}`}>
       <div className="mobile-menu-league-logo"
         style={{ background: logoStyle?.background ?? (darkBg ? "#1a1f3c" : "#f1f5f9"), ...logoStyle }}>
         {emoji ? (
@@ -248,5 +238,5 @@ function LeagueRow({ name, country, logo, darkBg, isActive, onClick, emoji, logo
         <div style={{ width: 4, height: 20, borderRadius: 2, background: "#2563eb", flexShrink: 0 }} />
       )}
     </button>
-  );
+  )
 }

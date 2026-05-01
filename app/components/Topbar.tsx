@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import SearchBar from "./SearchBar";
 import LangToggle from "./LangToggle";
 import MobileMenu from "./MobileMenu";
+import ThemeToggle from "./ThemeToggle";
 import { useT } from "@/lib/i18n";
 
 const SPORTS = [
@@ -25,7 +26,7 @@ export default function Topbar() {
   return (
     <header className="topbar" style={{ gap: "12px" }}>
 
-      {/* Bouton hamburger — mobile uniquement */}
+      {/* Hamburger mobile */}
       <MobileMenu />
 
       {/* Logo */}
@@ -34,7 +35,7 @@ export default function Topbar() {
         <span>SportScores</span>
       </div>
 
-      {/* Navigation sports — desktop uniquement */}
+      {/* Navigation sports — desktop */}
       <nav className="topbar__sports topbar__sports--desktop">
         {SPORTS.map(sport => (
           <Link
@@ -48,13 +49,16 @@ export default function Topbar() {
         ))}
       </nav>
 
-      {/* Barre de recherche */}
+      {/* Recherche */}
       <SearchBar />
 
       {/* Lang toggle */}
       <LangToggle />
 
-      {/* Favoris — desktop uniquement */}
+      {/* 🌙 Theme toggle */}
+      <ThemeToggle />
+
+      {/* Favoris — desktop */}
       <Link
         href="/favoris"
         className="topbar__favorites--desktop"

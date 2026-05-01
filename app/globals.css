@@ -1,5 +1,62 @@
 @import "tailwindcss";
 
+/* ===== DARK / LIGHT THEME ===== */
+:root {
+  --bg-page:        #f1f5f9;
+  --bg-surface:     #ffffff;
+  --bg-muted:       #f8fafc;
+  --border:         #e2e8f0;
+  --text-primary:   #0f172a;
+  --text-secondary: #475569;
+  --text-muted:     #94a3b8;
+  --accent:         #2563eb;
+  --accent-bg:      #eff6ff;
+}
+
+html.dark {
+  --bg-page:        #0f1117;
+  --bg-surface:     #1a1d27;
+  --bg-muted:       #22263a;
+  --border:         rgba(255,255,255,0.08);
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #475569;
+  --accent:         #3b82f6;
+  --accent-bg:      rgba(59,130,246,0.12);
+  html.dark .match-row-link:hover { background: var(--bg-muted) !important; }
+}
+
+html.dark body                     { background-color: var(--bg-page); color: var(--text-primary); }
+html.dark .topbar                  { background: var(--bg-surface); border-color: var(--border); box-shadow: none; }
+html.dark .topbar__logo            { color: var(--text-primary); }
+html.dark .topbar__sport-tab       { color: var(--text-muted); }
+html.dark .topbar__sport-tab:hover { color: var(--text-primary); }
+html.dark .topbar__sport-tab--active { color: var(--text-primary); border-bottom-color: #ef4444; }
+html.dark .sidebar                 { background: var(--bg-surface); border-color: var(--border); }
+html.dark .sidebar__title          { color: var(--text-muted); }
+html.dark .sidebar__item           { color: var(--text-secondary); }
+html.dark .sidebar__item:hover     { background: var(--bg-muted); color: var(--text-primary); }
+html.dark .sidebar__item--active   { background: var(--accent-bg); color: var(--accent); }
+html.dark .main-content            { background: var(--bg-page); }
+html.dark .skeleton                { background: var(--bg-muted); }
+html.dark .skeleton-card           { background: var(--bg-surface); border-color: var(--border); }
+html.dark .mobile-menu-overlay     { background: var(--bg-surface); }
+html.dark .mobile-menu-header      { border-color: var(--border); }
+
+/* DatePicker dark */
+html.dark .dp-arrow                { border-color: var(--border); color: var(--text-muted); }
+html.dark .dp-arrow:hover          { border-color: var(--accent); color: var(--accent); }
+html.dark .dp-chip                 { border-color: var(--border); }
+html.dark .dp-chip:hover,
+html.dark .dp-chip[data-open="true"] { border-color: var(--accent); background: var(--accent-bg); }
+html.dark .dp-chip-label           { color: var(--text-primary); }
+html.dark .dp-popup                { background: var(--bg-surface); border-color: var(--border); box-shadow: 0 12px 32px rgba(0,0,0,0.5); }
+html.dark .dp-cal-month            { color: var(--text-primary); }
+html.dark .dp-cal-arr              { border-color: var(--border); color: var(--text-secondary); }
+html.dark .dp-weekdays span        { color: var(--text-muted); }
+html.dark .dp-day                  { color: var(--text-secondary); }
+html.dark .dp-day:hover            { background: var(--bg-muted); color: var(--text-primary); }
+
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -26,6 +83,7 @@ html, body {
 .main-content {
   overflow-y: auto;
   background: #f8fafc;
+  padding-bottom: 80px;
 }
 
 /* ===== TOPBAR ===== */

@@ -446,7 +446,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
             { label: 'Date',        value: formatDate(match.dateEvent, match.strTime ?? '00:00:00') },
             { label: 'Stade',       value: match.strVenue ?? '—' },
             { label: 'Arbitre',     value: match.strOfficial ?? '—' },
-            { label: 'Statut',      value: statusText },
+            { label: 'Statut',      value: match.strStatus },
           ].map(({ label, value }) => (
             <div key={label} className="flex justify-between px-4 py-3">
               <span className="text-gray-500 text-sm">{label}</span>

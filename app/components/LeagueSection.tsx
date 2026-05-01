@@ -1,6 +1,3 @@
-// app/components/LeagueSection.tsx
-// Groupe de matchs pour une ligue (avec header drapeau + nom)
-
 import type { Match } from '@/lib/sportsdb'
 import MatchRow from './MatchRow'
 
@@ -21,19 +18,37 @@ interface Props {
 
 export default function LeagueSection({ leagueName, leagueBadge, matches }: Props) {
   const flag = LEAGUE_FLAGS[leagueName] || '⚽'
-  
+
   return (
-    <div className="mb-3 rounded-lg overflow-hidden border border-gray-800">
-      
+    <div style={{
+      marginBottom: 12,
+      borderRadius: 12,
+      overflow: 'hidden',
+      border: '1px solid var(--border)',
+      background: 'var(--bg-surface)',
+    }}>
       {/* Header ligue */}
-      <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-900">
-        <span className="text-base">{flag}</span>
-        <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '8px 14px',
+        background: 'var(--bg-muted)',
+        borderBottom: '1px solid var(--border)',
+      }}>
+        <span style={{ fontSize: 15 }}>{flag}</span>
+        <span style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: 'var(--text-secondary)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.07em',
+        }}>
           {leagueName}
         </span>
       </div>
 
-      {/* Liste des matchs */}
+      {/* Matchs */}
       {matches.map(match => (
         <MatchRow key={match.idEvent} match={match} />
       ))}

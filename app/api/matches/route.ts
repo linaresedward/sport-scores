@@ -1,37 +1,29 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const BASE    = "https://soccer.highlightly.net"
-const KEY     = process.env.HIGHLIGHTLY_KEY ?? ""
+const BASE = "https://soccer.highlightly.net"
+const KEY  = process.env.HIGHLIGHTLY_KEY ?? ""
 
-const PRIORITY_LEAGUES = [
-  "UEFA Champions League",
-  "UEFA Europa League",
-  "UEFA Europa Conference League",
-  "English Premier League",
-  "French Ligue 1",
-  "Spanish La Liga",
-  "German Bundesliga",
-  "Italian Serie A",
-  "Dutch Eredivisie",
-  "Copa Libertadores",
-  "Copa Sudamericana",
+const PRIORITY_LEAGUE_IDS = [
+  17423, 19374, 20093, 33973, 52695,
+  119924, 58588, 115669, 75672, 123328,
+  90990, 173537, 102053, 153113, 120775, 81629,
 ]
 
 function sortGrouped(grouped: Record<string, any[]>): Record<string, any[]> {
   const sorted: Record<string, any[]> = {}
-  for (const priority of PRIORITY_LEAGUES) {
-    const key = Object.keys(grouped).find(
-      (k) =>
-        k.toLowerCase().includes(priority.toLowerCase()) ||
-        priority.toLowerCase().includes(k.toLowerCase())
-    )
-    if (key && grouped[key]) {
-      sorted[key] = grouped[key]
-      delete grouped[key]
+  for (const id of PRIORITY_LEAGUE_IDS.map(String)) {
+    if (grouped[id]) {
+      sorted[id] = grouped[id]
+      delete grouped[id]
     }
   }
-  for (const league of Object.keys(grouped).sort()) {
-    sorted[league] = grouped[league]
+  const remaining = Object.entries(grouped).sort(([, a], [, b]) => {
+    const nameA = a[0]?.league?.name ?? ""
+    const nameB = b[0]?.league?.name ?? ""
+    return nameA.localeCompare(nameB)
+  })
+  for (const [key, matches] of remaining) {
+    sorted[key] = matches
   }
   return sorted
 }
@@ -39,7 +31,6 @@ function sortGrouped(grouped: Record<string, any[]>): Record<string, any[]> {
 export async function GET(req: NextRequest) {
   const date = req.nextUrl.searchParams.get("date")
   if (!date) return NextResponse.json({}, { status: 400 })
-
   try {
     const res = await fetch(
       `${BASE}/matches?date=${date}&timezone=Europe/Paris`,
@@ -51,22 +42,18 @@ export async function GET(req: NextRequest) {
         next: { revalidate: 30 },
       }
     )
-
     if (!res.ok) {
       console.error("Highlightly error:", res.status)
       return NextResponse.json({}, { status: res.status })
     }
-
     const data    = await res.json()
     const matches = data.data ?? []
-
     const grouped: Record<string, any[]> = {}
     for (const match of matches) {
-      const league = match.league?.name ?? "Autre"
-      if (!grouped[league]) grouped[league] = []
-      grouped[league].push(match)
+      const key = String(match.league?.id ?? "unknown")
+      if (!grouped[key]) grouped[key] = []
+      grouped[key].push(match)
     }
-
     return NextResponse.json(sortGrouped(grouped))
   } catch (err) {
     console.error("Route API error:", err)
