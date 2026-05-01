@@ -38,7 +38,6 @@ const COUNTRY_FLAG: Record<string, string> = {
   Cyprus: '🇨🇾', 'The Netherlands': '🇳🇱',
 }
 
-// Ligues internationales ou multi-pays — on fixe le pays/flag manuellement
 const LEAGUE_OVERRIDE: Record<string, { country: string; flag: string }> = {
   'NBA': { country: 'USA', flag: '🇺🇸' },
   'EuroLeague Basketball': { country: 'Europe', flag: '🇪🇺' },
@@ -93,22 +92,12 @@ function groupByLeague(events: SportEvent[]): LeagueGroup[] {
   for (const ev of events) {
     const key = ev.strLeague
     if (!map.has(key)) {
-      // Vérifier si la ligue a un override (NBA, EuroLeague...)
       const override = LEAGUE_OVERRIDE[ev.strLeague]
-      const country = override
-        ? override.country
-        : (ev.strCountry ? ev.strCountry : '')
+      const country = override ? override.country : (ev.strCountry ? ev.strCountry : '')
       const flag = override
         ? override.flag
         : (COUNTRY_FLAG[ev.strCountry ? ev.strCountry : ''] ? COUNTRY_FLAG[ev.strCountry ? ev.strCountry : ''] : '🏀')
-      map.set(key, {
-        key,
-        name: ev.strLeague,
-        badge: ev.strLeagueBadge,
-        country,
-        flag,
-        events: [],
-      })
+      map.set(key, { key, name: ev.strLeague, badge: ev.strLeagueBadge, country, flag, events: [] })
     }
     const group = map.get(key)
     if (group) group.events.push(ev)
@@ -178,43 +167,41 @@ function MatchRow({ ev, lang }: { ev: SportEvent; lang: string }) {
         </div>
       </div>
 
-      {/* Quarts Q1-Q4 */}
+      {/* Quarts Q1-Q4 — cachés sur mobile */}
       {showQuarters && Array.from({ length: nQ }).map(function(_, i) {
         const hQ    = homeQ[i] ? homeQ[i] : ''
         const aQ    = awayQ[i] ? awayQ[i] : ''
         const label = i < 4 ? 'Q' + (i + 1) : 'OT'
-        const isLast = i === nQ - 1
         return (
-          <div key={i} style={{ width: 32, flexShrink: 0, borderLeft: '1px solid var(--border)', background: isLast ? 'rgba(59,130,246,0.04)' : 'transparent' }}>
+          <div key={i} className="bk-quarter" style={{ width: 32, flexShrink: 0, borderLeft: '1px solid var(--border)' }}>
             <div style={{ height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border)', paddingTop: 2 }}>
               <span style={{ fontSize: 8, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '.04em' }}>{label}</span>
             </div>
             <div style={{ height: 21, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{hQ}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{hQ}</span>
             </div>
             <div style={{ height: 21, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{aQ}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{aQ}</span>
             </div>
           </div>
         )
       })}
 
-      {/* Score total */}
+      {/* Score total — toujours visible */}
       {hasScore && (
-        <div style={{ width: 36, flexShrink: 0, borderLeft: '1px solid var(--border)', background: 'rgba(59,130,246,0.06)' }}>
+        <div className="bk-score-col" style={{ width: 40, flexShrink: 0, borderLeft: '1px solid var(--border)', background: 'rgba(59,130,246,0.06)', flexDirection: 'column' }}>
           <div style={{ height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border)', paddingTop: 2 }}>
             <span style={{ fontSize: 8, color: 'var(--accent)', fontWeight: 700, letterSpacing: '.04em' }}>TOT</span>
           </div>
           <div style={{ height: 21, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 13, fontWeight: homeWin ? 700 : 500, color: homeWin ? 'var(--text-primary)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{homeScore}</span>
+            <span style={{ fontSize: 14, fontWeight: homeWin ? 700 : 500, color: homeWin ? 'var(--text-primary)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{homeScore}</span>
           </div>
           <div style={{ height: 21, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 13, fontWeight: awayWin ? 700 : 500, color: awayWin ? 'var(--text-primary)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{awayScore}</span>
+            <span style={{ fontSize: 14, fontWeight: awayWin ? 700 : 500, color: awayWin ? 'var(--text-primary)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{awayScore}</span>
           </div>
         </div>
       )}
 
-      {/* Flèche */}
       <div style={{ width: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14, flexShrink: 0 }}>›</div>
     </Link>
   )
@@ -280,6 +267,11 @@ export default function SportDayClient({
         @keyframes shimmer { 0%,100%{opacity:1} 50%{opacity:.45} }
         @keyframes bkPulse { 0%,100%{opacity:1} 50%{opacity:.35} }
         .bk-row:hover { background: var(--bg-muted) !important; }
+        .bk-quarter { display: flex; flex-direction: column; }
+        .bk-score-col { display: flex; }
+        @media (max-width: 640px) {
+          .bk-quarter { display: none !important; }
+        }
       `}</style>
 
       {/* Header */}
