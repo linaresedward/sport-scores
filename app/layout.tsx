@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import Topbar from './components/Topbar'
 import Sidebar from './components/Sidebar'
 import { LangProvider } from '@/lib/i18n'
@@ -31,6 +32,7 @@ export default function RootLayout({
             </div>
           </div>
         </LangProvider>
+        <Analytics />
       </body>
     </html>
   )
