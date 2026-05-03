@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { HMatch, normalizeStatus } from '@/lib/highlightly'
 import { useT } from '@/lib/i18n'
 import FavoriteButton from '@/app/components/FavoriteButton'
+import StandingsPanel from '@/app/components/StandingsPanel'
 
 // ─── Types ─────────────────────────────────────────────────
 interface Stat { displayName: string; value: number }
@@ -21,7 +22,7 @@ interface MatchEvent {
 interface HMatchFull extends HMatch {
   venue?:     { city: string; name: string; country: string; capacity: string }
   referee?:   { name: string; nationality: string }
-  forecast?:  { status: string | null; temperature: string }
+  forecast?:  { status: string; temperature: string }
   events?:    MatchEvent[]
   statistics?: TeamStat[]
   predictions?: {
@@ -29,6 +30,18 @@ interface HMatchFull extends HMatch {
   }
   homeTeam: HMatch['homeTeam'] & { topPlayers?: TopPlayer[] }
   awayTeam: HMatch['awayTeam'] & { topPlayers?: TopPlayer[] }
+}
+
+// Mapping Highlightly → TheSportsDB pour le classement
+const STANDINGS_MAP: Record<string, string> = {
+  "33973":  "4328",
+  "67162":  "4331",
+  "119924": "4335",
+  "52695":  "4334",
+  "115669": "4332",
+  "75672":  "4337",
+  "80778":  "4344",
+  "173537": "4346",
 }
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -48,8 +61,7 @@ function formatDate(iso: string, lang: string) {
 function formatRound(round: string, t: (k:any)=>string) {
   return round.replace(/Regular Season/i, t('regular_season'))
 }
-function weatherIcon(s: string | null | undefined) {
-  if (!s) return '🌤️'
+function weatherIcon(s: string) {
   const l = s.toLowerCase()
   if (l.includes('sun')||l.includes('clear')) return '☀️'
   if (l.includes('cloud')) return '☁️'
@@ -66,77 +78,10 @@ function eventIcon(type: string) {
   if (t.includes('penalty'))        return '🎯'
   return '•'
 }
-
-// ─── Classement inline (dans le tab) ───────────────────────
-function StandingsInline({ leagueId }: { leagueId: string }) {
-  const [standings, setStandings] = useState<any[]>([])
-  const [loading, setLoading]     = useState(true)
-
-  useEffect(() => {
-    fetch(`/api/standings?leagueId=${leagueId}`)
-      .then(r => r.json())
-      .then(d => { setStandings(d.groups?.[0]?.standings ?? []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [leagueId])
-
-  if (loading) return (
-    <div style={{padding:24,textAlign:"center",color:"var(--text-muted)"}}>Chargement...</div>
-  )
-  if (!standings.length) return (
-    <div style={{padding:24,textAlign:"center",color:"var(--text-muted)"}}>Classement non disponible</div>
-  )
-
-  return (
-    <div style={{background:"var(--bg-surface)",borderRadius:12,border:"1px solid var(--border)",overflow:"hidden"}}>
-      {/* En-tête */}
-      <div style={{
-        display:"grid", gridTemplateColumns:"32px 1fr 32px 32px 32px 40px 40px",
-        padding:"8px 16px", background:"var(--bg-muted)", borderBottom:"1px solid var(--border)",
-        fontSize:11, fontWeight:700, color:"var(--text-muted)",
-        letterSpacing:".05em", textTransform:"uppercase",
-      }}>
-        <span>#</span>
-        <span>Équipe</span>
-        <span style={{textAlign:"center"}}>MJ</span>
-        <span style={{textAlign:"center"}}>G</span>
-        <span style={{textAlign:"center"}}>P</span>
-        <span style={{textAlign:"center"}}>+/-</span>
-        <span style={{textAlign:"center"}}>Pts</span>
-      </div>
-      {/* Lignes */}
-      {standings.map((row: any) => {
-        const diff = (row.total.scoredGoals ?? 0) - (row.total.receivedGoals ?? 0)
-        return (
-          <div key={row.team.id} style={{
-            display:"grid", gridTemplateColumns:"32px 1fr 32px 32px 32px 40px 40px",
-            padding:"8px 16px", alignItems:"center", borderBottom:"1px solid var(--border)",
-          }}>
-            <span style={{fontSize:12,color:"var(--text-muted)",fontWeight:600}}>{row.position}</span>
-            <div style={{display:"flex",alignItems:"center",gap:6,overflow:"hidden"}}>
-              {row.team.logo && (
-                <img src={`/api/logo?url=${encodeURIComponent(row.team.logo)}`}
-                  width={16} height={16} style={{objectFit:"contain",flexShrink:0}} alt=""/>
-              )}
-              <span style={{
-                fontSize:12,fontWeight:500,color:"var(--text-primary)",
-                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-              }}>{row.team.name}</span>
-            </div>
-            <span style={{textAlign:"center",fontSize:12,color:"var(--text-secondary)"}}>{row.total.games}</span>
-            <span style={{textAlign:"center",fontSize:12,color:"var(--text-secondary)"}}>{row.total.wins}</span>
-            <span style={{textAlign:"center",fontSize:12,color:"var(--text-secondary)"}}>{row.total.loses}</span>
-            <span style={{
-              textAlign:"center",fontSize:12,fontWeight:600,
-              color:diff>0?"#166534":diff<0?"#991b1b":"var(--text-muted)",
-            }}>
-              {diff>0?`+${diff}`:diff}
-            </span>
-            <span style={{textAlign:"center",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{row.points}</span>
-          </div>
-        )
-      })}
-    </div>
-  )
+function proxyLogo(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.includes("thesportsdb.com")) return url
+  return `/api/logo?url=${encodeURIComponent(url)}`
 }
 
 // ─── Statut ─────────────────────────────────────────────────
@@ -179,10 +124,7 @@ function StatusDisplay({ match }: { match: HMatchFull }) {
     <div style={{maxWidth:200,margin:"0 auto",textAlign:"center"}}>
       {clock!==null ? (
         <div style={{display:"flex",alignItems:"baseline",justifyContent:"center",gap:2,marginBottom:4}}>
-          <span style={{fontSize:38,fontWeight:700,color,lineHeight:1}}>
-            {clock === 90 && status === "2H" ? "90+" :
-             clock === 45 && status === "1H" ? "45+" : clock}
-          </span>
+          <span style={{fontSize:38,fontWeight:700,color,lineHeight:1}}>{clock}</span>
           <span style={{fontSize:22,fontWeight:700,color}}>′</span>
         </div>
       ) : (
@@ -197,9 +139,7 @@ function StatusDisplay({ match }: { match: HMatchFull }) {
       {clock!==null && (
         <>
           <div style={{height:3,background:"rgba(239,68,68,0.15)",borderRadius:999,overflow:"hidden"}}>
-            <div style={{height:"100%",background:color,borderRadius:999,
-              width:`${Math.min(((Math.min(clock,pEnd)-pStart)/(pEnd-pStart))*100,100)}%`,
-              transition:"width 1s ease"}}/>
+            <div style={{height:"100%",background:color,borderRadius:999,width:`${Math.min(((clock-pStart)/(pEnd-pStart))*100,100)}%`,transition:"width 1s ease"}}/>
           </div>
           <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}>
             <span style={{fontSize:10,color:"var(--text-muted)"}}>{pStart}′</span>
@@ -289,7 +229,7 @@ function Events({ events, homeTeamId }: { events: MatchEvent[]; homeTeamId: numb
             <span style={{fontSize:16,flexShrink:0}}>{eventIcon(ev.type)}</span>
             <div style={{flex:1,textAlign:isHome?"left":"right"}}>
               <p style={{fontSize:13,fontWeight:500,color:"var(--text-primary)"}}>{ev.player}</p>
-              {ev.assist    && <p style={{fontSize:11,color:"var(--text-muted)"}}>↳ {ev.assist}</p>}
+              {ev.assist     && <p style={{fontSize:11,color:"var(--text-muted)"}}>↳ {ev.assist}</p>}
               {ev.substituted && <p style={{fontSize:11,color:"var(--text-muted)"}}>↑ {ev.substituted}</p>}
               <p style={{fontSize:11,color:"var(--text-muted)"}}>{ev.type}</p>
             </div>
@@ -308,7 +248,7 @@ function TopPlayers({ players, teamName, logo }: {
   return (
     <div style={{background:"var(--bg-surface)",borderRadius:12,border:"1px solid var(--border)",overflow:"hidden"}}>
       <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",borderBottom:"1px solid var(--border)",background:"var(--bg-muted)"}}>
-        {logo && <div style={{background:"#fff",borderRadius:4,padding:2,display:"flex"}}><img src={logo} style={{width:18,height:18,objectFit:"contain"}}/></div>}
+        {logo && <div style={{background:"#fff",borderRadius:4,padding:2,display:"flex"}}><img src={proxyLogo(logo)!} style={{width:18,height:18,objectFit:"contain"}}/></div>}
         <span style={{fontSize:13,fontWeight:600,color:"var(--text-primary)"}}>{teamName}</span>
       </div>
       {players.map((p,i) => (
@@ -338,7 +278,7 @@ export default function MatchDetailHighlightly({ matchId }: { matchId: string })
   const { t, lang } = useT()
   const [match, setMatch]         = useState<HMatchFull|null>(null)
   const [loading, setLoading]     = useState(true)
-  const [activeTab, setActiveTab] = useState<'events'|'stats'|'info'|'standings'>('events')
+  const [activeTab, setActiveTab] = useState<'events'|'stats'|'info'>('events')
 
   const fetchMatch = useCallback(async () => {
     try {
@@ -382,12 +322,16 @@ export default function MatchDetailHighlightly({ matchId }: { matchId: string })
   const scoreParts  = score ? score.split(" - ") : null
   const countryName = match.country?.name ? translateCountry(match.country.name, lang) : '—'
   const lastPred    = match.predictions?.prematch?.slice(-1)[0]
+  const leagueId    = String(match.league.id)
+  const standingsId = STANDINGS_MAP[leagueId] ?? null
+
+  const homeLogo = proxyLogo(match.homeTeam.logo)
+  const awayLogo = proxyLogo(match.awayTeam.logo)
 
   const TABS = [
-    { id:'events'    as const, label:`⚽ ${t('events')||"Événements"}` },
-    { id:'stats'     as const, label:`📊 Stats` },
-    { id:'info'      as const, label:`ℹ️ ${t('info')||"Infos"}` },
-    { id:'standings' as const, label:`🏆 Classement` },
+    { id:'events' as const, label:`⚽ ${t('events')||"Événements"}` },
+    { id:'stats'  as const, label:`📊 Stats` },
+    { id:'info'   as const, label:`ℹ️ ${t('info')||"Infos"}` },
   ]
 
   const infoRows = [
@@ -416,21 +360,27 @@ export default function MatchDetailHighlightly({ matchId }: { matchId: string })
       {/* Fil d'Ariane */}
       <div style={{fontSize:13,color:"var(--text-muted)",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
         <Link href="/" style={{color:"var(--text-muted)",textDecoration:"none"}}>{t('home')}</Link>
-        <span>/</span><span style={{color:"var(--text-secondary)"}}>{match.league.name}</span>
+        <span>/</span>
+        <span style={{color:"var(--text-secondary)"}}>{match.league.name}</span>
         {countryName!=='—'&&<><span>/</span><span>{countryName}</span></>}
       </div>
 
       {/* Header */}
       <div style={{background:"var(--bg-surface)",borderRadius:16,border:"1px solid var(--border)",overflow:"hidden"}}>
-        {/* Bandeau ligue — sans bouton classement (maintenant dans les tabs) */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"12px 20px",borderBottom:"1px solid var(--border)",background:"var(--bg-muted)"}}>
+
+        {/* Bandeau ligue + bouton classement */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"12px 20px",borderBottom:"1px solid var(--border)",background:"var(--bg-muted)",flexWrap:"wrap"}}>
           {match.league.logo && (
             <div style={{background:"#fff",borderRadius:4,padding:2,display:"flex"}}>
-              <img src={match.league.logo} style={{width:18,height:18,objectFit:"contain"}}/>
+              <img src={proxyLogo(match.league.logo)!} style={{width:18,height:18,objectFit:"contain"}}/>
             </div>
           )}
           <span style={{fontSize:13,fontWeight:600,color:"var(--text-secondary)"}}>{match.league.name}</span>
           <span style={{fontSize:11,color:"var(--text-muted)"}}>· {formatRound(match.round, t)}</span>
+          {/* ✅ Bouton classement si disponible */}
+          {standingsId && (
+            <StandingsPanel leagueId={standingsId} leagueName={match.league.name} />
+          )}
         </div>
 
         <div style={{padding:"24px 20px"}}>
@@ -440,23 +390,29 @@ export default function MatchDetailHighlightly({ matchId }: { matchId: string })
             {isLive && <p style={{fontSize:11,color:"var(--text-muted)",marginTop:8}}>{t('updates_30s')}</p>}
           </div>
 
-          {/* Équipes + Score + Étoiles favoris */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+          {/* ✅ Équipes + Score + Étoiles favoris */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
 
-            {/* Domicile */}
-            <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-start"}}>
+            {/* Domicile : étoile à gauche, logo + nom à droite */}
+            <div style={{display:"flex",alignItems:"center",gap:12,flex:1,justifyContent:"flex-start"}}>
+              {/* ✅ Étoile favori équipe domicile */}
               <FavoriteButton
-                item={{ id:String(match.homeTeam.id), type:"team", name:match.homeTeam.name, logo:match.homeTeam.logo??undefined }}
+                item={{
+                  id:   String(match.homeTeam.id),
+                  type: "team",
+                  name: match.homeTeam.name,
+                  logo: homeLogo ?? undefined,
+                }}
                 size="md"
               />
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-                <div style={{width:80,height:80,background:"var(--bg-muted)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",padding:6}}>
-                  {match.homeTeam.logo
-                    ? <img src={match.homeTeam.logo} style={{width:68,height:68,objectFit:"contain"}}/>
-                    : <span style={{fontSize:22,fontWeight:700,color:"var(--text-muted)"}}>{match.homeTeam.name.slice(0,2)}</span>
+                <div style={{width:72,height:72,background:"var(--bg-muted)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",padding:6}}>
+                  {homeLogo
+                    ? <img src={homeLogo} style={{width:60,height:60,objectFit:"contain"}}/>
+                    : <span style={{fontSize:20,fontWeight:700,color:"var(--text-muted)"}}>{match.homeTeam.name.slice(0,2)}</span>
                   }
                 </div>
-                <span style={{fontWeight:600,textAlign:"center",fontSize:14,color:"var(--text-primary)",maxWidth:110,lineHeight:1.3}}>
+                <span style={{fontWeight:600,textAlign:"center",fontSize:13,color:"var(--text-primary)",maxWidth:110,lineHeight:1.3}}>
                   {match.homeTeam.name}
                 </span>
               </div>
@@ -466,34 +422,40 @@ export default function MatchDetailHighlightly({ matchId }: { matchId: string })
             <div style={{textAlign:"center",flexShrink:0}}>
               {scoreParts ? (
                 <>
-                  <div style={{fontSize:56,fontWeight:900,letterSpacing:"-0.03em",color:isLive?"#ef4444":"var(--text-primary)",lineHeight:1}}>
+                  <div style={{fontSize:52,fontWeight:900,letterSpacing:"-0.03em",color:isLive?"#ef4444":"var(--text-primary)",lineHeight:1}}>
                     {scoreParts[0]}
-                    <span style={{color:"var(--border)",margin:"0 8px",fontSize:40}}>-</span>
+                    <span style={{color:"var(--border)",margin:"0 8px",fontSize:36}}>-</span>
                     {scoreParts[1]}
                   </div>
                   {hasPens && <p style={{fontSize:11,color:"#f97316",marginTop:6}}>{t('pen_score')}: {hasPens}</p>}
                 </>
               ) : (
-                <div style={{fontSize:28,fontWeight:700,color:"var(--text-muted)"}}>vs</div>
+                <div style={{fontSize:26,fontWeight:700,color:"var(--text-muted)"}}>vs</div>
               )}
               <p style={{fontSize:11,color:"var(--text-muted)",marginTop:10}}>{formatDate(match.date, lang)}</p>
             </div>
 
-            {/* Extérieur */}
-            <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-end"}}>
+            {/* Extérieur : logo + nom à gauche, étoile à droite */}
+            <div style={{display:"flex",alignItems:"center",gap:12,flex:1,justifyContent:"flex-end"}}>
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-                <div style={{width:80,height:80,background:"var(--bg-muted)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",padding:6}}>
-                  {match.awayTeam.logo
-                    ? <img src={match.awayTeam.logo} style={{width:68,height:68,objectFit:"contain"}}/>
-                    : <span style={{fontSize:22,fontWeight:700,color:"var(--text-muted)"}}>{match.awayTeam.name.slice(0,2)}</span>
+                <div style={{width:72,height:72,background:"var(--bg-muted)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",padding:6}}>
+                  {awayLogo
+                    ? <img src={awayLogo} style={{width:60,height:60,objectFit:"contain"}}/>
+                    : <span style={{fontSize:20,fontWeight:700,color:"var(--text-muted)"}}>{match.awayTeam.name.slice(0,2)}</span>
                   }
                 </div>
-                <span style={{fontWeight:600,textAlign:"center",fontSize:14,color:"var(--text-primary)",maxWidth:110,lineHeight:1.3}}>
+                <span style={{fontWeight:600,textAlign:"center",fontSize:13,color:"var(--text-primary)",maxWidth:110,lineHeight:1.3}}>
                   {match.awayTeam.name}
                 </span>
               </div>
+              {/* ✅ Étoile favori équipe extérieure */}
               <FavoriteButton
-                item={{ id:String(match.awayTeam.id), type:"team", name:match.awayTeam.name, logo:match.awayTeam.logo??undefined }}
+                item={{
+                  id:   String(match.awayTeam.id),
+                  type: "team",
+                  name: match.awayTeam.name,
+                  logo: awayLogo ?? undefined,
+                }}
                 size="md"
               />
             </div>
@@ -553,12 +515,12 @@ export default function MatchDetailHighlightly({ matchId }: { matchId: string })
             <div style={{background:"var(--bg-surface)",borderRadius:12,border:"1px solid var(--border)",padding:16}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:16,alignItems:"center"}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  {match.homeTeam.logo && <div style={{background:"#fff",borderRadius:3,padding:2}}><img src={match.homeTeam.logo} style={{width:16,height:16,objectFit:"contain"}}/></div>}
+                  {homeLogo && <div style={{background:"#fff",borderRadius:3,padding:2}}><img src={homeLogo} style={{width:16,height:16,objectFit:"contain"}}/></div>}
                   <span style={{fontSize:12,fontWeight:600,color:"var(--accent)"}}>{match.homeTeam.name}</span>
                 </div>
                 <span style={{fontSize:11,color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".07em"}}>Stats</span>
                 <div style={{display:"flex",alignItems:"center",gap:6,flexDirection:"row-reverse"}}>
-                  {match.awayTeam.logo && <div style={{background:"#fff",borderRadius:3,padding:2}}><img src={match.awayTeam.logo} style={{width:16,height:16,objectFit:"contain"}}/></div>}
+                  {awayLogo && <div style={{background:"#fff",borderRadius:3,padding:2}}><img src={awayLogo} style={{width:16,height:16,objectFit:"contain"}}/></div>}
                   <span style={{fontSize:12,fontWeight:600,color:"#ef4444"}}>{match.awayTeam.name}</span>
                 </div>
               </div>
@@ -569,6 +531,7 @@ export default function MatchDetailHighlightly({ matchId }: { matchId: string })
               Statistiques non disponibles
             </div>
           )}
+
           {(match.homeTeam.topPlayers?.length||match.awayTeam.topPlayers?.length) && (
             <>
               <p style={{fontSize:11,color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".07em"}}>
@@ -593,11 +556,6 @@ export default function MatchDetailHighlightly({ matchId }: { matchId: string })
             </div>
           ))}
         </div>
-      )}
-
-      {/* Tab Classement */}
-      {activeTab === 'standings' && (
-        <StandingsInline leagueId={String(match.league.id)} />
       )}
     </div>
   )

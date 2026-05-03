@@ -43,7 +43,7 @@ export default function FavoriteButton({ item, size = "md" }: Props) {
         border: "none",
         cursor: "pointer",
         background: active ? "#fef9c3" : "transparent",
-        color: active ? "#f59e0b" : "#cbd5e1",
+        color: active ? "#f59e0b" : "#ffffff",
         transform: burst ? "scale(1.3)" : "scale(1)",
         transition: "transform 0.2s cubic-bezier(.36,2,.5,.8), background 0.15s, color 0.15s",
         flexShrink: 0,

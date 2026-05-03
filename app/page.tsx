@@ -8,8 +8,15 @@ import Link from 'next/link'
 import Image from 'next/image'
 import MatchFavoriteButton from './components/MatchFavoriteButton'
 import DatePicker from './components/DatePicker'
+import StandingsPanel from './components/StandingsPanel'
 
 const LIVE_STATUSES = ["1H", "HT", "2H", "ET", "P"]
+
+// ─── Ordre sidebar (Internationale → Favorites → Autres) ───
+const INTERNATIONAL_IDS = ["17423","19374","20696","28543","6132","117551","112759"]
+const FAVORITE_IDS      = ["33973","67162","119924","52695","115669","75672","80778","173537"]
+const ALL_FIXED_IDS     = new Set([...INTERNATIONAL_IDS, ...FAVORITE_IDS])
+
 
 const COUNTRY_FR: Record<string, string> = {
   "England": "Angleterre", "France": "France", "Spain": "Espagne",
@@ -31,6 +38,7 @@ const COUNTRY_FR: Record<string, string> = {
   "El Salvador": "El Salvador", "Georgia": "Géorgie", "Bulgaria": "Bulgarie",
   "Bosnia": "Bosnie", "China": "Chine", "South Korea": "Corée du Sud",
   "Australia": "Australie", "United Arab Emirates": "Émirats arabes unis",
+  "Africa": "Afrique",
 }
 
 function translateCountry(name: string, lang: string): string {
@@ -45,7 +53,49 @@ function formatDate(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-// ─── Badge statut ──────────────────────────────────────────
+function proxyLogo(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.includes("thesportsdb.com")) return url
+  return `/api/logo?url=${encodeURIComponent(url)}`
+}
+
+// ─── Tri des ligues dans l'ordre sidebar ───────────────────
+function sortLeagues(grouped: Record<string, HMatch[]>): string[] {
+  const keys = Object.keys(grouped)
+
+  function getLeagueId(key: string): string {
+    return String(grouped[key]?.[0]?.league?.id ?? "")
+  }
+
+  const international: string[] = []
+  const favorites: string[]     = []
+  const others: string[]        = []
+
+  for (const key of keys) {
+    const id = getLeagueId(key)
+    const intIdx = INTERNATIONAL_IDS.indexOf(id)
+    const favIdx = FAVORITE_IDS.indexOf(id)
+    if (intIdx !== -1) international[intIdx] = key
+    else if (favIdx !== -1) favorites[favIdx] = key
+    else others.push(key)
+  }
+
+  others.sort((a, b) => {
+    const cA = grouped[a]?.[0]?.country?.name ?? ""
+    const cB = grouped[b]?.[0]?.country?.name ?? ""
+    return cA.localeCompare(cB) || a.localeCompare(b)
+  })
+
+  return [...international.filter(Boolean), ...favorites.filter(Boolean), ...others]
+}
+
+// ─── Petit bouton classement inline ───────────────────────
+function StandingsBtnInline({ leagueId, leagueName }: { leagueId: string; leagueName: string }) {
+  if (!leagueId) return null
+  return <StandingsPanel leagueId={leagueId} leagueName={leagueName} />
+}
+
+// ─── Badge statut ─────────────────────────────────────────
 function StatusBadge({ match, lang }: { match: HMatch; lang: string }) {
   const status = normalizeStatus(match.state.description)
   const clock  = match.state.clock
@@ -102,12 +152,17 @@ function StatusBadge({ match, lang }: { match: HMatch; lang: string }) {
         animation: "livePulse 1.2s ease-in-out infinite",
       }} />
       <span style={{ color: txt }}>{label}</span>
-      {clock !== null && <span style={{ color, marginLeft: "1px" }}>{clock}'</span>}
+      {clock !== null && (
+  <span style={{ color, marginLeft: "1px" }}>
+    {clock === 90 && status === "2H" ? "90+" :
+     clock === 45 && status === "1H" ? "45+" : clock}'
+  </span>
+)}
     </span>
   )
 }
 
-// ─── Ligne de match ────────────────────────────────────────
+// ─── Ligne de match ───────────────────────────────────────
 function MatchRow({ match, lang }: { match: HMatch; lang: string }) {
   const status   = normalizeStatus(match.state.description)
   const isLive   = LIVE_STATUSES.includes(status)
@@ -120,6 +175,12 @@ function MatchRow({ match, lang }: { match: HMatch; lang: string }) {
 
   const homeWin = hasScore && homeScore! > awayScore!
   const awayWin = hasScore && awayScore! > homeScore!
+
+  const homeLogo = proxyLogo(match.homeTeam.logo)
+  const awayLogo = proxyLogo(match.awayTeam.logo)
+
+  // ✅ Score live en rouge (#ef4444), pas en vert
+  const liveColor = "#ef4444"
 
   return (
     <div className="match-row-link" style={{
@@ -143,8 +204,8 @@ function MatchRow({ match, lang }: { match: HMatch; lang: string }) {
         {/* Équipes */}
         <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-            {match.homeTeam.logo
-              ? <Image src={match.homeTeam.logo} alt="" width={16} height={16}
+            {homeLogo
+              ? <Image src={homeLogo} alt="" width={16} height={16}
                   style={{ objectFit: "contain" }} unoptimized />
               : <div style={{ width: 16, height: 16, borderRadius: "50%",
                   background: "var(--bg-muted)", flexShrink: 0 }} />
@@ -156,8 +217,8 @@ function MatchRow({ match, lang }: { match: HMatch; lang: string }) {
             }}>{match.homeTeam.name}</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-            {match.awayTeam.logo
-              ? <Image src={match.awayTeam.logo} alt="" width={16} height={16}
+            {awayLogo
+              ? <Image src={awayLogo} alt="" width={16} height={16}
                   style={{ objectFit: "contain" }} unoptimized />
               : <div style={{ width: 16, height: 16, borderRadius: "50%",
                   background: "var(--bg-muted)", flexShrink: 0 }} />
@@ -170,16 +231,16 @@ function MatchRow({ match, lang }: { match: HMatch; lang: string }) {
           </div>
         </div>
 
-        {/* Scores */}
+        {/* Scores — ✅ rouge si live, sinon couleur normale */}
         {hasScore && (
           <div style={{ display: "flex", flexDirection: "column", gap: "5px", alignItems: "flex-end" }}>
             <span style={{
               fontSize: "13px", fontWeight: homeWin ? 700 : 400,
-              color: isLive ? "#22c55e" : homeWin ? "var(--text-primary)" : "var(--text-secondary)",
+              color: isLive ? liveColor : homeWin ? "var(--text-primary)" : "var(--text-secondary)",
             }}>{homeScore}</span>
             <span style={{
               fontSize: "13px", fontWeight: awayWin ? 700 : 400,
-              color: isLive ? "#22c55e" : awayWin ? "var(--text-primary)" : "var(--text-secondary)",
+              color: isLive ? liveColor : awayWin ? "var(--text-primary)" : "var(--text-secondary)",
             }}>{awayScore}</span>
           </div>
         )}
@@ -191,8 +252,8 @@ function MatchRow({ match, lang }: { match: HMatch; lang: string }) {
             id: String(match.id),
             homeTeam: match.homeTeam.name,
             awayTeam: match.awayTeam.name,
-            homeLogo: match.homeTeam.logo ?? undefined,
-            awayLogo: match.awayTeam.logo ?? undefined,
+            homeLogo: homeLogo ?? undefined,
+            awayLogo: awayLogo ?? undefined,
             league: match.league.name,
             date: match.date.split("T")[0],
             time: new Date(match.date).toLocaleTimeString("fr-FR", {
@@ -206,26 +267,52 @@ function MatchRow({ match, lang }: { match: HMatch; lang: string }) {
   )
 }
 
-// ─── Section ligue ─────────────────────────────────────────
+// ─── Section ligue ────────────────────────────────────────
 function LeagueSection({ leagueName, matches, lang }: {
   leagueName: string; matches: HMatch[]; lang: string
 }) {
-  const logo        = matches[0]?.league?.logo
+  const logo        = proxyLogo(matches[0]?.league?.logo)
   const displayName = matches[0]?.league?.name ?? leagueName
   const countryName = translateCountry(matches[0]?.country?.name ?? "", lang)
+  const leagueId    = String(matches[0]?.league?.id ?? "")
+
+  // ✅ Matchs triés par heure croissante
+  const sortedMatches = [...matches].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
 
   return (
     <>
       <style>{`
-        :root     { --league-header-bg: #f1f5f9; --league-card-bg: #ffffff; }
-        html.dark { --league-header-bg: #1e2235; --league-card-bg: #1a1d27; }
+        :root {
+          --league-header-bg: #f1f5f9;
+          --league-card-bg:   #ffffff;
+          --league-country:   var(--text-muted);
+        }
+        html.dark {
+          --league-header-bg: #1e2235;
+          --league-card-bg:   #1a1d27;
+          /* ✅ Pays en blanc en mode sombre */
+          --league-country:   #ffffff;
+        }
         .league-logo-wrap {
           width: 26px; height: 26px; border-radius: 5px;
           display: flex; align-items: center; justify-content: center;
           overflow: hidden; flex-shrink: 0;
+          /* ✅ Fond blanc pour que les logos sombres soient visibles */
+          background: #ffffff;
         }
-        :root     .league-logo-wrap { background: #ffffff; }
-        html.dark .league-logo-wrap { background: #ffffff; }
+        .standings-btn-sm {
+          display: inline-flex; align-items: center; gap: 4px;
+          padding: 3px 8px; border-radius: 6px;
+          border: 1px solid var(--border);
+          background: var(--bg-surface);
+          cursor: pointer; font-size: 11px; font-weight: 600;
+          color: var(--text-secondary);
+          transition: border-color 0.15s, color 0.15s;
+          white-space: nowrap;
+        }
+        .standings-btn-sm:hover { border-color: var(--accent); color: var(--accent); }
       `}</style>
 
       <div style={{
@@ -242,6 +329,7 @@ function LeagueSection({ leagueName, matches, lang }: {
           borderBottom: "1px solid var(--border)",
           background: "var(--league-header-bg)",
         }}>
+          {/* ✅ Logo sur fond blanc toujours (visible en dark et light) */}
           <div className="league-logo-wrap">
             {logo
               ? <Image src={logo} alt="" width={20} height={20}
@@ -250,36 +338,42 @@ function LeagueSection({ leagueName, matches, lang }: {
                   background: "var(--border)" }} />
             }
           </div>
+
           <span style={{
             fontSize: "12px", fontWeight: 700,
             color: "var(--text-primary)", letterSpacing: "0.02em", flex: 1,
           }}>
             {displayName}
           </span>
+
+          {/* ✅ Pays en blanc en dark mode via CSS variable */}
           {countryName && (
-            <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+            <span style={{ fontSize: "11px", color: "var(--league-country)" }}>
               {countryName}
             </span>
           )}
+
+          {/* ✅ Bouton classement compact — uniquement ligues avec mapping TheSportsDB */}
+          <StandingsBtnInline leagueId={leagueId} leagueName={displayName} />
         </div>
 
         {/* Matchs */}
         <div>
-          {matches.map((m) => <MatchRow key={m.id} match={m} lang={lang} />)}
+          {sortedMatches.map((m, idx) => <MatchRow key={`${m.id}-${idx}`} match={m} lang={lang} />)}
         </div>
       </div>
     </>
   )
 }
 
-// ─── Page principale ───────────────────────────────────────
+// ─── Page principale ──────────────────────────────────────
 export default function HomePage() {
   const { t, lang } = useT()
 
-  const [selectedDate, setSelectedDate]           = useState<Date>(new Date())
-  const [matchesByLeague, setMatchesByLeague]     = useState<Record<string, HMatch[]>>({})
-  const [loading, setLoading]                     = useState(true)
-  const [lastRefresh, setLastRefresh]             = useState<Date | null>(null)
+  const [selectedDate, setSelectedDate]       = useState<Date>(new Date())
+  const [matchesByLeague, setMatchesByLeague] = useState<Record<string, HMatch[]>>({})
+  const [loading, setLoading]                 = useState(true)
+  const [lastRefresh, setLastRefresh]         = useState<Date | null>(null)
 
   const load = useCallback(async (showLoading = true) => {
     if (showLoading) { setLoading(true); setMatchesByLeague({}) }
@@ -304,18 +398,15 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [matchesByLeague, selectedDate, load])
 
-  const leagues    = Object.keys(matchesByLeague)
-  const allMatches = Object.values(matchesByLeague).flat()
-  const hasLive    = allMatches.some(m =>
+  const sortedLeagues = sortLeagues(matchesByLeague)
+  const allMatches    = Object.values(matchesByLeague).flat()
+  const hasLive       = allMatches.some(m =>
     LIVE_STATUSES.includes(normalizeStatus(m.state.description))
   )
   const dateLocale = lang === 'fr' ? 'fr-FR' : 'en-GB'
 
   return (
-    <main style={{
-      maxWidth: 720, margin: "0 auto",
-      padding: "24px 16px 80px",
-    }}>
+    <main style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px 80px" }}>
       <style>{`
         @keyframes livePulse {
           0%, 100% { opacity: 1; transform: scale(1); }
@@ -360,14 +451,14 @@ export default function HomePage() {
       {/* Contenu */}
       {loading ? (
         <MatchSkeleton />
-      ) : leagues.length === 0 ? (
+      ) : sortedLeagues.length === 0 ? (
         <div style={{ textAlign: "center", padding: "64px 0", color: "var(--text-muted)" }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>📅</div>
           <p style={{ fontSize: 14 }}>{t("no_matches")}</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {leagues.map((league) => (
+          {sortedLeagues.map((league) => (
             <LeagueSection
               key={league}
               leagueName={league}
