@@ -191,7 +191,9 @@ function MatchRow({ match, lang }: { match: HMatch; lang: string }) {
         href={`/match/${match.id}`}
         style={{
           flex: 1, display: "grid",
-          gridTemplateColumns: "72px 1fr auto",
+          gridTemplateColumns: "60px 1fr auto",
+minWidth: 0,
+overflow: "hidden",
           alignItems: "center", padding: "10px 12px",
           gap: "12px", textDecoration: "none", color: "inherit",
         }}

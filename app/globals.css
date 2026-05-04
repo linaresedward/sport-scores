@@ -11,7 +11,6 @@
   --text-muted:     #94a3b8;
   --accent:         #2563eb;
   --accent-bg:      #eff6ff;
-  --logo-bg:        #f1f5f9;   /* ← fond des logos en light */
 }
 
 html.dark {
@@ -20,12 +19,11 @@ html.dark {
   --bg-muted:       #22263a;
   --border:         rgba(255,255,255,0.08);
   --text-primary:   #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-muted:     #8896aa;
+  --text-secondary: #94a3b8;
+  --text-muted:     #475569;
   --accent:         #3b82f6;
   --accent-bg:      rgba(59,130,246,0.12);
-  --logo-bg:        #ffffff;   /* ← fond blanc en dark pour que les logos soient visibles */
-  html.dark .match-row-link:hover { background: var(--bg-muted) !important; }
+
 }
 
 html.dark body                     { background-color: var(--bg-page); color: var(--text-primary); }
@@ -78,8 +76,7 @@ html, body {
 .app-body {
   display: grid;
   grid-template-columns: 224px 1fr;
-  /* CORRIGÉ : overflow visible pour que la sidebar puisse scroller indépendamment */
-  overflow: visible;
+  overflow: hidden;
   height: calc(100vh - 48px);
 }
 
@@ -87,7 +84,6 @@ html, body {
   overflow-y: auto;
   background: #f8fafc;
   padding-bottom: 80px;
-  height: 100%;
 }
 
 /* ===== TOPBAR ===== */
@@ -170,14 +166,6 @@ html, body {
   padding: 16px 0 24px;
   scrollbar-width: thin;
   scrollbar-color: #e2e8f0 transparent;
-}
-
-/* CORRIGÉ : sidebar-desktop scrollable sur toute la hauteur */
-.sidebar-desktop {
-  overflow-y: auto;
-  height: 100%;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
 }
 
 .sidebar__section { margin-bottom: 8px; }
@@ -345,32 +333,100 @@ html, body {
   font-size: 13px;
   font-weight: 500;
   color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.standing-rank-num {
-  font-size: 13px;
-  font-weight: 700;
+.rank-number {
+  font-size: 12px;
+  font-weight: 600;
   color: #94a3b8;
-  min-width: 20px;
+  min-width: 18px;
+  text-align: center;
 }
 
-.standing-zone-dot {
-  width: 6px;
-  height: 6px;
+.standing-logo-placeholder {
+  width: 22px; height: 22px;
   border-radius: 50%;
-  margin-left: 6px;
+  background: #f1f5f9;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700; color: #94a3b8;
   flex-shrink: 0;
 }
 
-/* ===== TEAM PAGE ===== */
+.standing-divider {
+  padding: 4px 18px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-top: 2px solid;
+}
+
+.standing-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.legend-dot {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ===== BADGES ===== */
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.badge-live { background: #fef2f2; color: #dc2626; }
+.badge-done { background: #f1f5f9; color: #94a3b8; }
+.badge-soon { background: #eff6ff; color: #2563eb; }
+
+/* ===== PAGE D'ACCUEIL ===== */
+.home-page { min-height: 100vh; background: #f8fafc; }
+
+.matches-container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px 32px;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 20px 0 8px;
+  margin: 0;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 0;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* ===== ÉQUIPES ===== */
 .team-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .team-card {
@@ -435,37 +491,37 @@ html, body {
 
   /* Layout : Sidebar cachée, pleine largeur */
   .app-body {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
     height: calc(100vh - 48px);
   }
 
   /* Sidebar masquée sur mobile */
-  .app-body > aside,
-  .sidebar-wrapper,
-  .sidebar-desktop {
-    display: none !important;
+  .app-body > aside {
+    display: none;
   }
 
-  /* Topbar mobile : compacte, scrollable si besoin */
+  /* Topbar mobile : compacte */
   .topbar {
     padding: 0 12px;
-    gap: 8px !important;
+    gap: 0;
     overflow-x: auto;
     scrollbar-width: none;
   }
+
   .topbar::-webkit-scrollbar { display: none; }
 
-  /* Logo mobile */
   .topbar__logo {
-    margin-right: 0;
+    margin-right: 12px;
     font-size: 13px;
   }
 
-  /* Cacher sur mobile : nav sports, searchbar, lang, favoris */
-  .topbar__sports--desktop    { display: none !important; }
-  .topbar__search--desktop    { display: none !important; }
-  .topbar__lang-toggle        { display: none !important; }
-  .topbar__favorites--desktop { display: none !important; }
+  .topbar__sport-tab {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  /* Cacher le texte FR/EN sur mobile, garder les boutons */
+  .topbar__lang-label { display: none; }
 
   /* Contenu principal pleine largeur */
   .main-content {
@@ -499,12 +555,39 @@ html, body {
   .topbar__sport-tab { padding: 0 8px; font-size: 11px; }
   .topbar__logo { font-size: 12px; }
 
-  /* Cacher les étoiles favoris équipe dans les matchs — gain de place */
-  .fav-btn-team-sm {
+  /* Cacher "Favoris" label, garder l'étoile */
+  .topbar__favorites-label { display: none; }
+}
+/* Wrapper sidebar pour ciblage mobile */
+.sidebar-wrapper {
+  display: contents;
+}
+
+@media (max-width: 768px) {
+  .sidebar-wrapper {
     display: none;
   }
 }
+/* ===== SIDEBAR RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .sidebar-desktop {
+    display: none !important;
+  }
 
+  .app-body {
+    grid-template-columns: 1fr !important;
+    height: calc(100vh - 48px);
+  }
+
+  .topbar {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topbar::-webkit-scrollbar {
+    display: none;
+  }
+}
 /* ===== MOBILE MENU ===== */
 
 /* Bouton hamburger — caché sur desktop */
@@ -525,17 +608,24 @@ html, body {
 
 .mobile-menu-btn:hover { background: #f1f5f9; }
 
-/* Navigation sports desktop */
+/* Navigation sports desktop — cachée sur mobile */
 .topbar__sports--desktop { display: flex; }
 
-/* Favoris desktop */
+/* Favoris desktop — caché sur mobile */
 .topbar__favorites--desktop { display: flex !important; }
 
 @media (max-width: 768px) {
+  /* Afficher le hamburger */
   .mobile-menu-btn { display: flex; }
-  .topbar__sports--desktop    { display: none !important; }
+
+  /* Cacher nav sports sur mobile */
+  .topbar__sports--desktop { display: none !important; }
+
+  /* Cacher favoris sur mobile */
   .topbar__favorites--desktop { display: none !important; }
-  .topbar__lang-toggle        { display: none !important; }
+
+  /* Cacher lang toggle sur mobile */
+  .topbar__lang-toggle { display: none; }
 }
 
 /* Overlay plein écran */
@@ -583,11 +673,11 @@ html, body {
 .mobile-menu-body {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 0 48px;
+  padding: 16px 0 32px;
 }
 
 .mobile-menu-section {
-  margin-bottom: 4px;
+  margin-bottom: 8px;
   padding: 0 16px;
 }
 
@@ -670,13 +760,3 @@ html, body {
   color: #94a3b8;
   margin-top: 1px;
 }
-
-/* Dark mode menu */
-html.dark .mobile-menu-overlay  { background: var(--bg-surface); }
-html.dark .mobile-menu-header   { border-color: var(--border); }
-html.dark .mobile-menu-league-name { color: var(--text-primary); }
-html.dark .mobile-menu-sport-btn { background: var(--bg-surface); border-color: var(--border); color: var(--text-secondary); }
-html.dark .mobile-menu-sport-btn.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
-html.dark .mobile-menu-league-item:hover { background: var(--bg-muted); }
-html.dark .mobile-menu-league-item.active { background: var(--accent-bg); }
-html.dark .mobile-menu-close { background: var(--bg-muted); color: var(--text-secondary); }

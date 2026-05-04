@@ -84,11 +84,19 @@ export default function MobileMenu() {
     loadOthers()
   }, [])
 
-  useEffect(() => { setOpen(false) }, [pathname])
+  useEffect(() => { 
+  setOpen(false)
+  document.body.style.overflow = "" // ← force la réinitialisation
+}, [pathname])
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : ""
     return () => { document.body.style.overflow = "" }
   }, [open])
+  useEffect(() => {
+  // Sécurité : fermer le menu si la page se recharge
+  setOpen(false)
+  document.body.style.overflow = ""
+}, [])
 
   function navigate(href: string) { setOpen(false); router.push(href) }
 
