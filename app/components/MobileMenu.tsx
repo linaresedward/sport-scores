@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import LangToggle from "./LangToggle";
+import ThemeToggle from "./ThemeToggle";
 
 const PRIORITY_LEAGUES = [
   { id: "17423",  name: "UEFA Champions League", countryFr: "UEFA",       countryEn: "UEFA",    logo: "https://r2.thesportsdb.com/images/media/league/badge/facv1u1742998896.png", darkBg: true },
@@ -203,6 +205,33 @@ export default function MobileMenu() {
                 isActive={pathname === "/favoris"}
                 onClick={() => navigate("/favoris")}
               />
+            </div>
+
+            {/* ─── Paramètres ─── */}
+            <div className="mobile-menu-section" style={{
+              borderTop: "1px solid #f1f5f9",
+              paddingTop: 8,
+              marginTop: 8,
+            }}>
+              <p className="mobile-menu-section-title">Paramètres</p>
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "10px 12px",
+              }}>
+                <span style={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+                  Langue
+                </span>
+                <LangToggle />
+              </div>
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "10px 12px",
+              }}>
+                <span style={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+                  Mode sombre
+                </span>
+                <ThemeToggle />
+              </div>
             </div>
 
           </div>

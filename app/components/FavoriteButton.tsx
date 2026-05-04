@@ -31,8 +31,9 @@ export default function FavoriteButton({ item, size = "md" }: Props) {
 
   return (
     <button
-      onClick={handleClick}
-      title={active ? "Retirer des favoris" : "Ajouter aux favoris"}
+  onClick={handleClick}
+  title={active ? "Retirer des favoris" : "Ajouter aux favoris"}
+  className={size === "sm" ? "fav-btn-team-sm" : ""}
       style={{
         ...sizeStyle,
         position: "relative",

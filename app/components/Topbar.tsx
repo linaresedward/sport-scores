@@ -30,12 +30,12 @@ export default function Topbar() {
       <MobileMenu />
 
       {/* Logo */}
-      <div className="topbar__logo">
+      <Link href="/" className="topbar__logo">
         <div className="topbar__logo-dot" />
         <span>SportScores</span>
-      </div>
+      </Link>
 
-      {/* Navigation sports — desktop */}
+      {/* Navigation sports — desktop seulement */}
       <nav className="topbar__sports topbar__sports--desktop">
         {SPORTS.map(sport => (
           <Link
@@ -49,16 +49,20 @@ export default function Topbar() {
         ))}
       </nav>
 
-      {/* Recherche */}
-      <SearchBar />
+      {/* Recherche — desktop seulement */}
+      <div className="topbar__search--desktop">
+        <SearchBar />
+      </div>
 
-      {/* Lang toggle */}
-      <LangToggle />
+      {/* Lang toggle — desktop seulement */}
+      <div className="topbar__lang-toggle">
+        <LangToggle />
+      </div>
 
-      {/* 🌙 Theme toggle */}
+      {/* Theme toggle — toujours visible */}
       <ThemeToggle />
 
-      {/* Favoris — desktop */}
+      {/* Favoris — desktop seulement */}
       <Link
         href="/favoris"
         className="topbar__favorites--desktop"
