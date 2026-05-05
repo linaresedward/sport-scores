@@ -64,6 +64,8 @@ html, body {
   background-color: #f1f5f9;
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  scrollbar-gutter: stable; 
 }
 
 /* ===== LAYOUT GLOBAL ===== */
@@ -82,6 +84,7 @@ html, body {
 
 .main-content {
   overflow-y: auto;
+  overflow-x: hidden; /* ← ajoute ça */
   background: #f8fafc;
   padding-bottom: 80px;
 }
