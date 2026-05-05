@@ -24,7 +24,7 @@ async function getFormMap(highlightlyId: string): Promise<Record<string, string>
   if (cached && Date.now() - cached.ts < 3_600_000) return cached.data
 
   try {
-    const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/lookuptable.php?l=${sportsdbId}&s=2024-2025`
+    const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/lookuptable.php?l=${sportsdbId}&s=2025-2026`
     const res  = await fetch(url, { next: { revalidate: 3600 } })
     const json = await res.json()
 
@@ -98,6 +98,9 @@ export async function GET(req: NextRequest) {
         )
         row.strBadge   = row.team?.logo ?? ""
         row.strDescription = row.description ?? ""
+        row.intDraw         = String(row.total?.draws ?? "")
+row.intGoalsFor     = String(row.total?.scoredGoals ?? "")
+row.intGoalsAgainst = String(row.total?.receivedGoals ?? "")
       }
     }
   }
