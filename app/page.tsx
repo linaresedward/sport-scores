@@ -16,15 +16,19 @@ const LIVE_STATUSES = ["1H", "HT", "2H", "ET", "P"]
 // ─── Indicateur visuel de but ────────────────────────────
 interface GoalFlash { team: 'home' | 'away'; phase: 'pending' | 'confirmed' | 'cancelled' }
 
-function GoalIndicator({ phase }: { phase: GoalFlash['phase'] }) {
+function GoalIndicator({ phase, lang }: { phase: GoalFlash['phase']; lang: string }) {
   if (phase === 'pending') return (
     <span style={{ color: '#ef4444', fontSize: 8, animation: 'livePulse 0.7s ease-in-out infinite', flexShrink: 0 }}>⬤</span>
   )
   if (phase === 'confirmed') return (
-    <span style={{ fontSize: 9, fontWeight: 800, color: '#16a34a', background: '#dcfce7', borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>BUT !</span>
+    <span style={{ fontSize: 9, fontWeight: 800, color: '#fff', background: '#15803d', borderRadius: 4, padding: '2px 5px', flexShrink: 0 }}>
+      {lang === 'fr' ? 'BUT !' : 'GOAL!'}
+    </span>
   )
   return (
-    <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444', background: '#fee2e2', borderRadius: 4, padding: '1px 4px', flexShrink: 0, whiteSpace: 'nowrap' }}>ANNULÉ</span>
+    <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: '#b91c1c', borderRadius: 4, padding: '2px 4px', flexShrink: 0, whiteSpace: 'nowrap' }}>
+      {lang === 'fr' ? 'ANNULÉ' : 'DISALLOWED'}
+    </span>
   )
 }
 
@@ -234,7 +238,7 @@ overflow: "hidden",
               fontWeight: homeWin ? 700 : 400,
               color: homeWin ? "var(--text-primary)" : "var(--text-secondary)",
             }}>{match.homeTeam.name}</span>
-            {goalFlash?.team === 'home' && <GoalIndicator phase={goalFlash.phase} />}
+            {goalFlash?.team === 'home' && <GoalIndicator phase={goalFlash.phase} lang={lang} />}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
             {awayLogo
@@ -248,7 +252,7 @@ overflow: "hidden",
               fontWeight: awayWin ? 700 : 400,
               color: awayWin ? "var(--text-primary)" : "var(--text-secondary)",
             }}>{match.awayTeam.name}</span>
-            {goalFlash?.team === 'away' && <GoalIndicator phase={goalFlash.phase} />}
+            {goalFlash?.team === 'away' && <GoalIndicator phase={goalFlash.phase} lang={lang} />}
           </div>
         </div>
 
@@ -431,10 +435,10 @@ export default function HomePage() {
             // 4s → confirmed, puis effacement après 8s
             setTimeout(() => {
               setGoalFlashes(prev => prev[id] ? { ...prev, [id]: { ...prev[id], phase: 'confirmed' } } : prev)
-              setTimeout(() => setGoalFlashes(prev => { const n = { ...prev }; delete n[id]; return n }), 8000)
+              setTimeout(() => setGoalFlashes(prev => { const n = { ...prev }; delete n[id]; return n }), 20000)
             }, 4000)
           } else {
-            setTimeout(() => setGoalFlashes(prev => { const n = { ...prev }; delete n[id]; return n }), 6000)
+            setTimeout(() => setGoalFlashes(prev => { const n = { ...prev }; delete n[id]; return n }), 20000)
           }
         }
       }

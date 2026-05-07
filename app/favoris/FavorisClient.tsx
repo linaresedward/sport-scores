@@ -11,12 +11,9 @@ import { useT } from "@/lib/i18n";
 function playSound(type: "goal" | "cancelled" | "halftime" | "fulltime") {
   try {
     if (type === "fulltime") {
-      // Fin de match = mi-temps × 2
-      const a = new Audio("/sounds/mi-temps.mp3")
-      a.play().catch(() => {})
-      a.addEventListener("ended", () => {
-        new Audio("/sounds/mi-temps.mp3").play().catch(() => {})
-      })
+      // Fin de match = mi-temps × 2, délai 1 seconde entre les deux
+      new Audio("/sounds/mi-temps.mp3").play().catch(() => {})
+      setTimeout(() => new Audio("/sounds/mi-temps.mp3").play().catch(() => {}), 1000)
     } else {
       const file = type === "goal" ? "but.mp3"
                  : type === "cancelled" ? "but-annule.mp3"
@@ -32,6 +29,15 @@ const LIVE_STATUSES = ["1H", "HT", "2H", "ET", "P"];
 interface GoalFlash {
   team: "home" | "away";
   phase: "pending" | "confirmed" | "cancelled";
+}
+
+interface ToastMsg {
+  id:          string;
+  type:        "goal" | "cancelled" | "halftime" | "fulltime";
+  homeTeam:    string;
+  awayTeam:    string;
+  scoringTeam?: string;
+  score:       string | null;
 }
 
 interface MatchLive {
@@ -141,18 +147,29 @@ function MatchRow({
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Flash BUT / But annulé */}
+      {/* Bannière BUT / But annulé — 20s, borderRadius uniforme */}
       {flash && flash.phase !== "pending" && (
         <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, zIndex: 10,
-          background: flash.phase === "confirmed" ? "rgba(22,163,74,0.92)" : "rgba(239,68,68,0.88)",
+          position: "absolute", inset: 0, zIndex: 10,
+          background: flash.phase === "confirmed"
+            ? "rgba(21,128,61,0.93)"   /* vert foncé visible clair+sombre */
+            : "rgba(185,28,28,0.93)",  /* rouge foncé visible clair+sombre */
           color: "#fff", textAlign: "center",
-          padding: "5px 12px", fontSize: 13, fontWeight: 700,
-          animation: "goalFlashAnim 5s forwards",
-          borderRadius: "0 0 8px 8px",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 14, fontWeight: 800, letterSpacing: "0.04em",
+          animation: "goalFlashAnim 20s forwards",
+          borderRadius: 0, /* Uniforme — le card parent gère les coins */
           pointerEvents: "none",
+          gap: 8,
         }}>
-          {flash.team === "home" ? match.homeTeam : match.awayTeam} — {flash.phase === "confirmed" ? "BUT !" : "BUT ANNULÉ"}
+          <span style={{ fontSize: 18 }}>{flash.phase === "confirmed" ? "⚽" : "❌"}</span>
+          <span>
+            {flash.team === "home" ? match.homeTeam : match.awayTeam}
+            {" — "}
+            {flash.phase === "confirmed"
+              ? (lang === "fr" ? "BUT !" : "GOAL!")
+              : (lang === "fr" ? "BUT ANNULÉ" : "GOAL DISALLOWED")}
+          </span>
         </div>
       )}
 
@@ -317,6 +334,70 @@ function MatchGroupCard({
   );
 }
 
+// ─── Toasts notification ─────────────────────────────────
+function ToastContainer({ toasts, lang, onClose }: { toasts: ToastMsg[]; lang: string; onClose: (id: string) => void }) {
+  if (toasts.length === 0) return null;
+
+  const texts: Record<ToastMsg["type"], { icon: string; fr: string; en: string }> = {
+    goal:      { icon: "⚽", fr: "BUT !",          en: "GOAL!" },
+    cancelled: { icon: "❌", fr: "But annulé",     en: "Goal Disallowed" },
+    halftime:  { icon: "🔔", fr: "Mi-temps",       en: "Half Time" },
+    fulltime:  { icon: "🏁", fr: "Fin du match",   en: "Full Time" },
+  };
+
+  return (
+    <div style={{
+      position: "fixed", bottom: 20, right: 20,
+      display: "flex", flexDirection: "column", gap: 8,
+      zIndex: 9999, maxWidth: 300, pointerEvents: "none",
+    }}>
+      {toasts.map((t) => {
+        const info = texts[t.type];
+        const label = lang === "fr" ? info.fr : info.en;
+        const score = t.score ? ` ${t.score.replace(" - ", "–")}` : "";
+        const matchLine = `${t.homeTeam}${score} vs ${t.awayTeam}`;
+        const detailLine = t.scoringTeam ? (lang === "fr" ? `${t.scoringTeam}` : `${t.scoringTeam}`) : "";
+
+        const bgColor = t.type === "goal"     ? "#15803d"
+                      : t.type === "cancelled"? "#b91c1c"
+                      : t.type === "halftime" ? "#b45309"
+                      : "#1d4ed8"; /* fulltime blue */
+
+        return (
+          <div key={t.id} style={{
+            background: bgColor, color: "#fff",
+            borderRadius: 12, padding: "10px 14px",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+            animation: "toastSlideIn 0.25s ease",
+            pointerEvents: "all", minWidth: 240,
+          }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>{info.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.03em" }}>
+                  {label}{detailLine ? ` — ${detailLine}` : ""}
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.85, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {matchLine}
+                </div>
+              </div>
+              <button
+                onClick={() => onClose(t.id)}
+                style={{
+                  background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 6,
+                  color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700,
+                  width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0, padding: 0,
+                }}
+              >×</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Page principale ──────────────────────────────────────
 export default function FavorisClient() {
   const { t, lang }          = useT();
@@ -333,6 +414,14 @@ export default function FavorisClient() {
   const [liveStates, setLiveStates] = useState<Record<string, MatchLive>>({});
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const prevRef = useRef<Record<string, { score: string | null; status: string }>>({});
+
+  // Toasts
+  const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const addToast = useCallback((msg: Omit<ToastMsg, "id">) => {
+    const id = `${Date.now()}-${Math.random()}`;
+    setToasts(prev => [...prev, { ...msg, id }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 30000);
+  }, []);
 
   // Groupement par compétition, trié par heure
   const groups = useMemo<MatchGroup[]>(() => {
@@ -384,24 +473,36 @@ export default function FavorisClient() {
             const [nh, na] = score.split(" - ").map(Number);
             const id = fav.id;
 
-            if (nh > ph || na > pa) {
-              // But marqué : point clignotant 4s, puis BUT + son
-              goalFlash = { team: nh > ph ? "home" : "away", phase: "pending" };
+            const team = nh > ph ? "home" : na > pa ? "away" : nh < ph ? "home" : "away";
+            const isGoal = nh > ph || na > pa;
+            const isCancelled = nh < ph || na < pa;
+
+            if (isGoal) {
+              // Point clignotant 4s → BUT confirmé + son + toast
+              goalFlash = { team, phase: "pending" };
               setTimeout(() => {
-                setLiveStates(s => s[id] ? { ...s, [id]: { ...s[id], goalFlash: { team: nh > ph ? "home" : "away", phase: "confirmed" } } } : s);
+                setLiveStates(s => s[id] ? { ...s, [id]: { ...s[id], goalFlash: { team, phase: "confirmed" } } } : s);
                 playSound("goal");
-                setTimeout(() => setLiveStates(s => ({ ...s, [id]: { ...s[id], goalFlash: null } })), 8000);
+                addToast({ type: "goal", homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, scoringTeam: team === "home" ? fav.homeTeam : fav.awayTeam, score });
+                setTimeout(() => setLiveStates(s => ({ ...s, [id]: { ...s[id], goalFlash: null } })), 20000);
               }, 4000);
-            } else if (nh < ph || na < pa) {
-              // But annulé : afficher immédiatement + son
-              goalFlash = { team: nh < ph ? "home" : "away", phase: "cancelled" };
+            } else if (isCancelled) {
+              // But annulé : immédiat + son + toast
+              goalFlash = { team, phase: "cancelled" };
               playSound("cancelled");
-              setTimeout(() => setLiveStates(s => ({ ...s, [id]: { ...s[id], goalFlash: null } })), 6000);
+              addToast({ type: "cancelled", homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, scoringTeam: team === "home" ? fav.homeTeam : fav.awayTeam, score });
+              setTimeout(() => setLiveStates(s => ({ ...s, [id]: { ...s[id], goalFlash: null } })), 20000);
             }
           }
 
-          if (pr && pr.status !== "HT" && status === "HT")             playSound("halftime");
-          if (pr && pr.status !== "Match Finished" && status === "Match Finished") playSound("fulltime");
+          if (pr && pr.status !== "HT" && status === "HT") {
+            playSound("halftime");
+            addToast({ type: "halftime", homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, score });
+          }
+          if (pr && pr.status !== "Match Finished" && status === "Match Finished") {
+            playSound("fulltime");
+            addToast({ type: "fulltime", homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, score });
+          }
 
           prevRef.current[fav.id] = { score, status };
 
@@ -445,7 +546,7 @@ export default function FavorisClient() {
     } catch (e) {
       console.error("Favorites refresh error:", e);
     }
-  }, [todayMatches, today]);
+  }, [todayMatches, today, addToast]);
 
   // Fetch initial
   useEffect(() => { refresh(); }, [refresh]);
@@ -469,10 +570,17 @@ export default function FavorisClient() {
       <style>{`
         @keyframes goalFlashAnim {
           0%   { opacity: 1; }
-          80%  { opacity: 1; }
+          85%  { opacity: 1; }
           100% { opacity: 0; }
         }
+        @keyframes toastSlideIn {
+          from { opacity: 0; transform: translateX(20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
       `}</style>
+
+      {/* Toasts — notifications événements en bas à droite */}
+      <ToastContainer toasts={toasts} lang={lang} onClose={(id) => setToasts(p => p.filter(t => t.id !== id))} />
 
       {/* Titre */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
