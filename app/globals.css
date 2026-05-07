@@ -86,26 +86,26 @@ html.dark, html.dark body { background-color: var(--bg-page); }
 
 html.dark .app-body { background: var(--bg-page); }
 
-/* ─── Main content : scroll interne avec gouttière stable ──────────────────
-   scrollbar-gutter: stable réserve TOUJOURS l'espace du scrollbar (≈15px).
-   On le colore identique au fond → invisible quelle que soit la config OS.
-   Ainsi, même avec un scrollbar classique Windows (non cachable par CSS),
-   le track est de la même couleur que le fond → zéro bande visible. ─── */
+/* ─── Main content : clip container — NE SCROLLE PAS lui-même ─────────────
+   Le scroll est délégué à .scroll-inner qui est 30px plus large que son
+   parent. Le scrollbar apparaît dans ce surplus de 30px, qui est clippé
+   par overflow:hidden. Résultat : scrollbar totalement invisible quel que
+   soit l'OS / navigateur / paramètres Windows. ─────────────────────────── */
 .main-content {
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;         /* Clip le scrollbar de scroll-inner */
   background: #f8fafc;
-  padding-bottom: 80px;
-  scrollbar-gutter: stable;
-  scrollbar-color: rgba(148,163,184,0.3) #f8fafc; /* Firefox: thumb + track = fond */
+  position: relative;
 }
-/* Chrome / Safari / Edge / Android */
-.main-content::-webkit-scrollbar        { width: 6px; }
-.main-content::-webkit-scrollbar-track  { background: #f8fafc; } /* Même couleur que le fond */
-.main-content::-webkit-scrollbar-thumb  { background: rgba(148,163,184,0.35); border-radius: 3px; }
-html.dark .main-content::-webkit-scrollbar-track { background: var(--bg-page); }
-html.dark .main-content::-webkit-scrollbar-thumb { background: rgba(71,85,105,0.5); }
-html.dark .main-content { scrollbar-color: rgba(71,85,105,0.5) var(--bg-page); }
+
+/* scroll-inner : 30px plus large → scrollbar hors de la zone visible */
+.scroll-inner {
+  overflow-y: scroll;       /* Toujours actif pour éviter les sauts de layout */
+  overflow-x: hidden;
+  width: calc(100% + 30px);   /* 30px > toute largeur de scrollbar (Win/Mac/Linux) */
+  height: 100%;
+  padding-bottom: 80px;
+  box-sizing: border-box;
+}
 
 /* Sidebar : scroll interne silencieux */
 .sidebar-desktop { scrollbar-width: none; }
@@ -519,12 +519,10 @@ html.dark .main-content { scrollbar-color: rgba(71,85,105,0.5) var(--bg-page); }
     grid-template-columns: 1fr;
     height: calc(100vh - 48px);
   }
-  /* Mobile : pas de scrollbar visible */
-  .main-content {
-    scrollbar-gutter: auto;
-    scrollbar-width: none;
+  /* Mobile : scroll-inner pleine largeur (touch = pas de scrollbar visible) */
+  .scroll-inner {
+    width: 100%;
   }
-  .main-content::-webkit-scrollbar { display: none; }
 
   /* Sidebar masquée sur mobile */
   .app-body > aside {

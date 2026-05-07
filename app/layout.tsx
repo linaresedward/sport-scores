@@ -27,7 +27,9 @@ export default function RootLayout({
             <div className="app-body">
               <Sidebar />
               <main className="main-content">
-                {children}
+                <div className="scroll-inner">
+                  {children}
+                </div>
               </main>
             </div>
           </div>
