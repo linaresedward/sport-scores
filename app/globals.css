@@ -61,13 +61,13 @@ html.dark .dp-day:hover            { background: var(--bg-muted); color: var(--t
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
-  background-color: #f1f5f9;
+  background-color: #f8fafc; /* Identique au fond de .main-content → toute zone visible = même couleur */
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
-  overflow: hidden; /* Scroll uniquement dans .main-content, jamais dans le body */
+  overflow: hidden;
 }
 
-html.dark body { background-color: var(--bg-page); }
+html.dark, html.dark body { background-color: var(--bg-page); }
 
 /* ===== LAYOUT GLOBAL ===== */
 .app-shell {
@@ -79,9 +79,12 @@ html.dark body { background-color: var(--bg-page); }
 .app-body {
   display: grid;
   grid-template-columns: 224px 1fr;
+  background: #f8fafc; /* Même couleur que .main-content et html/body */
   overflow: hidden;
   height: calc(100vh - 48px);
 }
+
+html.dark .app-body { background: var(--bg-page); }
 
 /* ─── Main content : scroll interne avec gouttière stable ──────────────────
    scrollbar-gutter: stable réserve TOUJOURS l'espace du scrollbar (≈15px).
