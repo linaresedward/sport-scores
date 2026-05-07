@@ -60,13 +60,11 @@ html.dark .dp-day:hover            { background: var(--bg-muted); color: var(--t
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; }
 
-/* ─── Cacher TOUS les scrollbars : viewport (body/html) et éléments internes ─── */
-html, body {
-  scrollbar-width: none;        /* Firefox */
-  -ms-overflow-style: none;     /* IE / Edge legacy */
-}
-html::-webkit-scrollbar,
-body::-webkit-scrollbar         { display: none; } /* Chrome / Safari / Android / iOS */
+/* ─── Cacher TOUS les scrollbars — viewport ET éléments internes ───────────
+   Le sélecteur global ::-webkit-scrollbar (sans préfixe d'élément) capture
+   le scrollbar du viewport Chrome/Edge/Safari/Android que body:: manquait. */
+* { scrollbar-width: none; -ms-overflow-style: none; }   /* Firefox + IE/Edge */
+::-webkit-scrollbar { width: 0 !important; height: 0 !important; } /* Webkit/Blink */
 
 html {
   background-color: #f1f5f9;

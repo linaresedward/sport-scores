@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import MatchSkeleton from './components/MatchSkeleton'
 import { getMatchesByDate, HMatch, normalizeStatus } from '../lib/highlightly'
+import { translateStatus, translateCountry as _translateCountry } from '../lib/labels'
 import { useT } from '@/lib/i18n'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -18,32 +19,9 @@ const FAVORITE_IDS      = ["33973","67162","119924","52695","115669","75672","80
 const ALL_FIXED_IDS     = new Set([...INTERNATIONAL_IDS, ...FAVORITE_IDS])
 
 
-const COUNTRY_FR: Record<string, string> = {
-  "England": "Angleterre", "France": "France", "Spain": "Espagne",
-  "Germany": "Allemagne", "Italy": "Italie", "Portugal": "Portugal",
-  "Netherlands": "Pays-Bas", "Belgium": "Belgique", "Scotland": "Écosse",
-  "Turkey": "Turquie", "Brazil": "Brésil", "Argentina": "Argentine",
-  "Mexico": "Mexique", "USA": "États-Unis", "Japan": "Japon",
-  "Switzerland": "Suisse", "Austria": "Autriche", "Poland": "Pologne",
-  "Denmark": "Danemark", "Sweden": "Suède", "Norway": "Norvège",
-  "Romania": "Roumanie", "Hungary": "Hongrie", "Ireland": "Irlande",
-  "Saudi Arabia": "Arabie Saoudite", "Egypt": "Égypte",
-  "Morocco": "Maroc", "Russia": "Russie", "Ukraine": "Ukraine",
-  "Serbia": "Serbie", "Croatia": "Croatie", "Greece": "Grèce",
-  "International": "International", "Europe": "Europe",
-  "South America": "Amérique du Sud", "Northern Ireland": "Irlande du Nord",
-  "Iceland": "Islande", "Rwanda": "Rwanda", "Gambia": "Gambie",
-  "Qatar": "Qatar", "Iraq": "Irak", "Colombia": "Colombie",
-  "Ecuador": "Équateur", "Bolivia": "Bolivie", "Paraguay": "Paraguay",
-  "El Salvador": "El Salvador", "Georgia": "Géorgie", "Bulgaria": "Bulgarie",
-  "Bosnia": "Bosnie", "China": "Chine", "South Korea": "Corée du Sud",
-  "Australia": "Australie", "United Arab Emirates": "Émirats arabes unis",
-  "Africa": "Afrique",
-}
 
 function translateCountry(name: string, lang: string): string {
-  if (lang === 'fr') return COUNTRY_FR[name] ?? name
-  return name
+  return _translateCountry(name, lang)
 }
 
 function formatDate(date: Date): string {
@@ -92,11 +70,17 @@ function StandingsBtnInline({ leagueId, leagueName }: { leagueId: string; league
   return <StandingsPanel leagueId={leagueId} leagueName={leagueName} />
 }
 
+// Statuts qui terminent définitivement un match (pas de dot live)
+const FINISHED_STATUSES = new Set(["Match Finished", "FT-ET", "FT-P"])
+// Statuts non joués (reporté, annulé…)
+const INACTIVE_STATUSES = new Set(["Postponed", "Cancelled", "Suspended", "Abandoned", "Interrupted", "Awarded", "Not covered"])
+
 // ─── Badge statut ─────────────────────────────────────────
 function StatusBadge({ match, lang }: { match: HMatch; lang: string }) {
   const status = normalizeStatus(match.state.description)
   const clock  = match.state.clock
 
+  // Match non commencé → heure
   if (status === "NS") {
     const time = new Date(match.date).toLocaleTimeString(
       lang === 'fr' ? 'fr-FR' : 'en-GB',
@@ -105,14 +89,28 @@ function StatusBadge({ match, lang }: { match: HMatch; lang: string }) {
     return <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 500 }}>{time}</span>
   }
 
-  if (status === "Match Finished" || status === "FT-ET" || status === "FT-P") {
-    const label =
-      status === "FT-P"  ? (lang === "fr" ? "Ap. pén." : "AET Pen") :
-      status === "FT-ET" ? (lang === "fr" ? "Ap. prol." : "AET") :
-      "FT"
-    return <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>{label}</span>
+  // Match terminé (FT / Ap. prol. / Ap. pén.)
+  if (FINISHED_STATUSES.has(status)) {
+    return <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>
+      {translateStatus(status, lang)}
+    </span>
   }
 
+  // Match inactif (Reporté, Annulé…) → badge gris, sans dot
+  if (INACTIVE_STATUSES.has(status)) {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center",
+        padding: "3px 8px", borderRadius: "999px",
+        background: "#f1f5f9", border: "1px solid #e2e8f0",
+        fontSize: "11px", fontWeight: 600, color: "#64748b",
+      }}>
+        {translateStatus(status, lang)}
+      </span>
+    )
+  }
+
+  // Mi-temps
   if (status === "HT") {
     return (
       <span style={{
@@ -123,22 +121,18 @@ function StatusBadge({ match, lang }: { match: HMatch; lang: string }) {
       }}>
         <span style={{ width: "5px", height: "5px", borderRadius: "50%",
           background: "#f59e0b", display: "inline-block" }} />
-        HT
+        {translateStatus("HT", lang)}
       </span>
     )
   }
 
+  // Match en cours (live)
   const isExtra = status === "ET"
   const color   = isExtra ? "#f59e0b" : "#ef4444"
   const bg      = isExtra ? "#fffbeb" : "#fef2f2"
   const border  = isExtra ? "#fde68a" : "#fecaca"
   const txt     = isExtra ? "#92400e" : "#b91c1c"
-
-  const liveLabel: Record<string, Record<string, string>> = {
-    fr: { "1H": "1MT", "2H": "2MT", "ET": "Prol.", "P": "TAB" },
-    en: { "1H": "1H",  "2H": "2H",  "ET": "ET",    "P": "PEN" },
-  }
-  const label = liveLabel[lang]?.[status] ?? status
+  const label   = translateStatus(status, lang)
 
   return (
     <span style={{
@@ -154,11 +148,11 @@ function StatusBadge({ match, lang }: { match: HMatch; lang: string }) {
       }} />
       <span style={{ color: txt }}>{label}</span>
       {clock !== null && (
-  <span style={{ color, marginLeft: "1px" }}>
-    {clock === 90 && status === "2H" ? "90+" :
-     clock === 45 && status === "1H" ? "45+" : clock}'
-  </span>
-)}
+        <span style={{ color, marginLeft: "1px" }}>
+          {clock === 90 && status === "2H" ? "90+" :
+           clock === 45 && status === "1H" ? "45+" : clock}'
+        </span>
+      )}
     </span>
   )
 }

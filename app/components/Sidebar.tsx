@@ -93,8 +93,8 @@ const COUNTRY_FR: Record<string, string> = {
 }
 
 function translateCountry(name: string, lang: string): string {
-  if (lang === "fr") return COUNTRY_FR[name] ?? name
-  return name
+  if (lang !== "fr") return name
+  return COUNTRY_FR[name] ?? name // garde le fallback local pour rétrocompatibilité
 }
 
 function proxyLogo(url: string | null | undefined): string | null {
