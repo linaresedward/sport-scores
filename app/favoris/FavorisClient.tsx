@@ -187,13 +187,21 @@ function MatchRow({
         </div>
       )}
 
+      <Link
+        href={`/match/${match.id}`}
+        style={{ textDecoration: "none", color: "inherit" }}
+      >
       <div style={{
         display: "flex", alignItems: "center",
         padding: "10px 14px", gap: 10,
         borderBottom: "1px solid var(--border)",
         background: flash ? (flash.type === "goal" ? "rgba(22,163,74,0.04)" : "rgba(239,68,68,0.04)") : "transparent",
         transition: "background 0.3s",
-      }}>
+        cursor: "pointer",
+      }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-muted)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = flash ? (flash.type === "goal" ? "rgba(22,163,74,0.04)" : "rgba(239,68,68,0.04)") : "transparent")}
+      >
         {/* Heure / statut */}
         <div style={{ width: 48, flexShrink: 0, display: "flex", justifyContent: "center" }}>
           {status === "NS" || !live ? (
@@ -253,18 +261,21 @@ function MatchRow({
           </div>
         )}
 
-        {/* Supprimer */}
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
-          style={{
-            background: "none", border: "none", cursor: "pointer",
-            fontSize: 16, color: "var(--text-muted)", padding: "2px 4px",
-            lineHeight: 1, flexShrink: 0,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-        >×</button>
       </div>
+      </Link>
+
+      {/* Supprimer — hors du Link pour ne pas déclencher la navigation */}
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
+        style={{
+          position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+          background: "none", border: "none", cursor: "pointer",
+          fontSize: 16, color: "var(--text-muted)", padding: "4px 6px",
+          lineHeight: 1, zIndex: 5,
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+      >×</button>
     </div>
   );
 }

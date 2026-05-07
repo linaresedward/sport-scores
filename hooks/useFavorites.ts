@@ -107,14 +107,15 @@ export function useFavorites() {
 
   // ── Matchs ────────────────────────────────────────────
   const toggleFavMatch = useCallback((match: FavoriteMatch) => {
-    setFavMatches((prev) => {
-      const exists = prev.some((m) => m.id === match.id);
-      const updated = exists
-        ? prev.filter((m) => m.id !== match.id)
-        : [...prev, match];
-      saveFavMatches(updated);
-      return updated;
-    });
+    // Lit depuis localStorage à chaque appel pour éviter la race condition
+    // quand plusieurs boutons sont cliqués rapidement (chaque composant a sa propre instance)
+    const current = loadFavMatches();
+    const exists  = current.some((m) => m.id === match.id);
+    const updated = exists
+      ? current.filter((m) => m.id !== match.id)
+      : [...current, match];
+    saveFavMatches(updated);
+    setFavMatches(updated);
   }, []);
 
   const isFavMatch = useCallback(
