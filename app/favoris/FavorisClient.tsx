@@ -63,7 +63,8 @@ interface MatchGroup {
 // ─── Proxy logo ───────────────────────────────────────────
 function proxyLogo(url?: string | null): string | null {
   if (!url) return null;
-  if (url.includes("thesportsdb.com")) return url;
+  // URL déjà proxifiée (stockée depuis page.tsx) → ne pas re-encoder
+  if (url.startsWith("/api/logo") || url.includes("thesportsdb.com")) return url;
   return `/api/logo?url=${encodeURIComponent(url)}`;
 }
 
@@ -299,7 +300,7 @@ function MatchGroupCard({
         {hasLive && (
           <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#ef4444" }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", animation: "livePulse 1.4s ease-in-out infinite" }} />
-            LIVE
+            {lang === "fr" ? "EN DIRECT" : "LIVE"}
           </span>
         )}
       </div>

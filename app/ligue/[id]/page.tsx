@@ -6,6 +6,7 @@ import LeagueFavoriteButton from "../../components/LeagueFavoriteButton";
 import { RoundBlock } from "./RoundBlock";
 import type { Event } from "./RoundBlock";
 import { HIGHLIGHTLY_TO_SPORTSDB, SPORTSDB_CUP_IDS } from "../../../lib/labels";
+import HighlightlyLeaguePage from "./HighlightlyLeaguePage";
 
 const KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY;
 // IDs TheSportsDB qui sont des compétitions européennes (format K.O.)
@@ -68,20 +69,9 @@ export default async function LiguePage({ params }: { params: Promise<{ id: stri
   // Convertit un ID Highlightly (sidebar) en ID TheSportsDB
   const id = HIGHLIGHTLY_TO_SPORTSDB[rawId] ?? rawId;
 
-  // Compétitions sans mapping TheSportsDB → page provisoire (sera Phase 2)
-  if (!HIGHLIGHTLY_TO_SPORTSDB[rawId] && !rawId.match(/^\d{4}$/)) {
-    // ID Highlightly sans équivalent TheSportsDB connu
-    return (
-      <div style={{ flex: 1, padding: "28px 36px", maxWidth: "860px", textAlign: "center", paddingTop: 80 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🏆</div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
-          Page en cours de développement
-        </h1>
-        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
-          Les pages de compétitions internationales (Conference League, UEFA Euro…) seront disponibles prochainement.
-        </p>
-      </div>
-    );
+  // Ligues sans mapping TheSportsDB → page Highlightly (Conference League, UEFA Euro…)
+  if (!HIGHLIGHTLY_TO_SPORTSDB[rawId]) {
+    return <HighlightlyLeaguePage highlightlyId={rawId} />;
   }
 
   const league = await getLeagueInfo(id);
@@ -110,10 +100,10 @@ export default async function LiguePage({ params }: { params: Promise<{ id: stri
           )}
         </div>
         <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "#0f172a", margin: 0 }}>
+          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
             {league.strLeague}
           </h1>
-          <p style={{ fontSize: "13px", color: "#94a3b8", margin: "2px 0 0" }}>
+          <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "2px 0 0" }}>
             {league.strCountry} · {league.strCurrentSeason}
           </p>
         </div>
