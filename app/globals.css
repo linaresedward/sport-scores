@@ -86,30 +86,33 @@ html.dark, html.dark body { background-color: var(--bg-page); }
 
 html.dark .app-body { background: var(--bg-page); }
 
-/* ─── Main content : clip container — NE SCROLLE PAS lui-même ─────────────
-   Le scroll est délégué à .scroll-inner qui est 30px plus large que son
-   parent. Le scrollbar apparaît dans ce surplus de 30px, qui est clippé
-   par overflow:hidden. Résultat : scrollbar totalement invisible quel que
-   soit l'OS / navigateur / paramètres Windows. ─────────────────────────── */
+/* ─── Main content : scrollbar fin et élégant ─────────────────────────── */
 .main-content {
-  overflow: hidden;         /* Clip le scrollbar de scroll-inner */
-  background: #f8fafc;
-  position: relative;
-}
-
-/* scroll-inner : 30px plus large → scrollbar hors de la zone visible */
-.scroll-inner {
-  overflow-y: scroll;       /* Toujours actif pour éviter les sauts de layout */
+  overflow-y: auto;
   overflow-x: hidden;
-  width: calc(100% + 30px);   /* 30px > toute largeur de scrollbar (Win/Mac/Linux) */
-  height: 100%;
+  background: #f8fafc;
   padding-bottom: 80px;
-  box-sizing: border-box;
+  /* Scrollbar fin — visible mais discret */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
 }
+.main-content::-webkit-scrollbar        { width: 6px; }
+.main-content::-webkit-scrollbar-track  { background: transparent; }
+.main-content::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 3px; }
+.main-content::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* Sidebar : scroll interne silencieux */
-.sidebar-desktop { scrollbar-width: none; }
-.sidebar-desktop::-webkit-scrollbar { display: none; }
+html.dark .main-content { scrollbar-color: #334155 transparent; }
+html.dark .main-content::-webkit-scrollbar-thumb { background: #334155; }
+html.dark .main-content::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Sidebar : scrollbar fin également */
+.sidebar-desktop {
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}
+.sidebar-desktop::-webkit-scrollbar       { width: 4px; }
+.sidebar-desktop::-webkit-scrollbar-track { background: transparent; }
+.sidebar-desktop::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
 
 /* ===== TOPBAR ===== */
 .topbar {
@@ -519,10 +522,11 @@ html.dark .app-body { background: var(--bg-page); }
     grid-template-columns: 1fr;
     height: calc(100vh - 48px);
   }
-  /* Mobile : scroll-inner pleine largeur (touch = pas de scrollbar visible) */
-  .scroll-inner {
-    width: 100%;
+  /* Mobile : scrollbar masqué (touch scroll natif) */
+  .main-content {
+    scrollbar-width: none;
   }
+  .main-content::-webkit-scrollbar { display: none; }
 
   /* Sidebar masquée sur mobile */
   .app-body > aside {
