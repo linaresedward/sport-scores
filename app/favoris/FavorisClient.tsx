@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useFavorites, FavoriteMatch } from "@/hooks/useFavorites";
 import { normalizeStatus } from "@/lib/highlightly";
+import { translateCountry as _translateCountry } from "@/lib/labels";
 import { useT } from "@/lib/i18n";
 
 // ─── Sons depuis les fichiers audio ──────────────────────
@@ -50,11 +51,12 @@ interface MatchLive {
 }
 
 interface MatchGroup {
-  key:          string;   // leagueId ou league name
-  leagueName:   string;
-  leagueLogo?:  string;
-  matches:      FavoriteMatch[];
-  earliestTime: string;
+  key:            string;
+  leagueName:     string;
+  leagueLogo?:    string;
+  leagueCountry?: string;
+  matches:        FavoriteMatch[];
+  earliestTime:   string;
 }
 
 // ─── Proxy logo ───────────────────────────────────────────
@@ -173,101 +175,77 @@ function MatchRow({
         </div>
       )}
 
-      <Link
-        href={`/match/${match.id}`}
-        style={{ textDecoration: "none", color: "inherit" }}
-      >
+      {/* Rangée principale : Link (flex:1) + bouton × dans le flux */}
       <div style={{
         display: "flex", alignItems: "center",
-        padding: "10px 14px", gap: 10,
         borderBottom: "1px solid var(--border)",
         background: flash ? (flash.phase === "confirmed" ? "rgba(22,163,74,0.04)" : "rgba(239,68,68,0.04)") : "transparent",
         transition: "background 0.3s",
-        cursor: "pointer",
-      }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-muted)")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = flash ? (flash.phase === "confirmed" ? "rgba(22,163,74,0.04)" : "rgba(239,68,68,0.04)") : "transparent")}
-      >
-        {/* Heure / statut */}
-        <div style={{ width: 48, flexShrink: 0, display: "flex", justifyContent: "center" }}>
-          {status === "NS" || !live ? (
-            <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>
-              {match.time || "—"}
-            </span>
-          ) : (
-            <StatusBadge status={status} clock={live.clock} lang={lang} />
+      }}>
+        <Link
+          href={`/match/${match.id}`}
+          style={{ flex: 1, display: "flex", alignItems: "center", padding: "10px 14px", gap: 10, textDecoration: "none", color: "inherit", minWidth: 0 }}
+        >
+          {/* Heure / statut */}
+          <div style={{ width: 48, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+            {status === "NS" || !live ? (
+              <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>{match.time || "—"}</span>
+            ) : (
+              <StatusBadge status={status} clock={live.clock} lang={lang} />
+            )}
+          </div>
+
+          {/* Équipes */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              {homeLogo
+                ? <Image src={homeLogo} alt="" width={15} height={15} style={{ objectFit: "contain" }} unoptimized />
+                : <div style={{ width: 15, height: 15, borderRadius: "50%", background: "var(--bg-muted)", flexShrink: 0 }} />
+              }
+              <span style={{ fontSize: 13, fontWeight: homeWin ? 700 : 400, color: homeWin ? "var(--text-primary)" : "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {match.homeTeam}
+              </span>
+              <RedCard count={live?.homeRedCards ?? 0} />
+              {flash?.team === "home" && flash.phase === "pending" && (
+                <span style={{ color: '#ef4444', fontSize: 8, animation: 'livePulse 0.7s ease-in-out infinite', flexShrink: 0 }}>⬤</span>
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {awayLogo
+                ? <Image src={awayLogo} alt="" width={15} height={15} style={{ objectFit: "contain" }} unoptimized />
+                : <div style={{ width: 15, height: 15, borderRadius: "50%", background: "var(--bg-muted)", flexShrink: 0 }} />
+              }
+              <span style={{ fontSize: 13, fontWeight: awayWin ? 700 : 400, color: awayWin ? "var(--text-primary)" : "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {match.awayTeam}
+              </span>
+              <RedCard count={live?.awayRedCards ?? 0} />
+              {flash?.team === "away" && flash.phase === "pending" && (
+                <span style={{ color: '#ef4444', fontSize: 8, animation: 'livePulse 0.7s ease-in-out infinite', flexShrink: 0 }}>⬤</span>
+              )}
+            </div>
+          </div>
+
+          {/* Score — aligné à droite, séparé du bouton × */}
+          {hasScore && (
+            <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+              <span style={{ fontSize: 13, fontWeight: homeWin ? 700 : 400, color: isLive ? "#ef4444" : homeWin ? "var(--text-primary)" : "var(--text-secondary)" }}>{homeScore}</span>
+              <span style={{ fontSize: 13, fontWeight: awayWin ? 700 : 400, color: isLive ? "#ef4444" : awayWin ? "var(--text-primary)" : "var(--text-secondary)" }}>{awayScore}</span>
+            </div>
           )}
-        </div>
+        </Link>
 
-        {/* Équipes */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Domicile */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            {homeLogo
-              ? <Image src={homeLogo} alt="" width={15} height={15} style={{ objectFit: "contain" }} unoptimized />
-              : <div style={{ width: 15, height: 15, borderRadius: "50%", background: "var(--bg-muted)", flexShrink: 0 }} />
-            }
-            <span style={{
-              fontSize: 13, fontWeight: homeWin ? 700 : 400,
-              color: homeWin ? "var(--text-primary)" : "var(--text-secondary)",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              {match.homeTeam}
-            </span>
-            <RedCard count={live?.homeRedCards ?? 0} />
-            {flash?.team === "home" && flash.phase === "pending" && (
-              <span style={{ color: '#ef4444', fontSize: 8, animation: 'livePulse 0.7s ease-in-out infinite', flexShrink: 0 }}>⬤</span>
-            )}
-          </div>
-          {/* Extérieur */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {awayLogo
-              ? <Image src={awayLogo} alt="" width={15} height={15} style={{ objectFit: "contain" }} unoptimized />
-              : <div style={{ width: 15, height: 15, borderRadius: "50%", background: "var(--bg-muted)", flexShrink: 0 }} />
-            }
-            <span style={{
-              fontSize: 13, fontWeight: awayWin ? 700 : 400,
-              color: awayWin ? "var(--text-primary)" : "var(--text-secondary)",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              {match.awayTeam}
-            </span>
-            <RedCard count={live?.awayRedCards ?? 0} />
-            {flash?.team === "away" && flash.phase === "pending" && (
-              <span style={{ color: '#ef4444', fontSize: 8, animation: 'livePulse 0.7s ease-in-out infinite', flexShrink: 0 }}>⬤</span>
-            )}
-          </div>
-        </div>
-
-        {/* Score */}
-        {hasScore && (
-          <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-            <span style={{
-              fontSize: 13, fontWeight: homeWin ? 700 : 400,
-              color: isLive ? "#ef4444" : homeWin ? "var(--text-primary)" : "var(--text-secondary)",
-            }}>{homeScore}</span>
-            <span style={{
-              fontSize: 13, fontWeight: awayWin ? 700 : 400,
-              color: isLive ? "#ef4444" : awayWin ? "var(--text-primary)" : "var(--text-secondary)",
-            }}>{awayScore}</span>
-          </div>
-        )}
-
+        {/* Bouton × dans le flux flex — clairement séparé du score */}
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
+          style={{
+            flexShrink: 0, background: "none", border: "none", cursor: "pointer",
+            fontSize: 16, color: "var(--text-muted)", padding: "4px 10px",
+            lineHeight: 1, alignSelf: "stretch", display: "flex", alignItems: "center",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+        >×</button>
       </div>
-      </Link>
-
-      {/* Supprimer — hors du Link pour ne pas déclencher la navigation */}
-      <button
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(); }}
-        style={{
-          position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
-          background: "none", border: "none", cursor: "pointer",
-          fontSize: 16, color: "var(--text-muted)", padding: "4px 6px",
-          lineHeight: 1, zIndex: 5,
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-      >×</button>
     </div>
   );
 }
@@ -312,6 +290,11 @@ function MatchGroupCard({
         <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", flex: 1 }}>
           {group.leagueName}
         </span>
+        {group.leagueCountry && (
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            {_translateCountry(group.leagueCountry, lang)}
+          </span>
+        )}
         {hasLive && (
           <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#ef4444" }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", animation: "livePulse 1.4s ease-in-out infinite" }} />
@@ -434,10 +417,11 @@ export default function FavorisClient() {
       if (!map.has(key)) {
         map.set(key, {
           key,
-          leagueName: m.league,
-          leagueLogo: m.leagueLogo,
-          matches: [],
-          earliestTime: m.time ?? "00:00",
+          leagueName:     m.league,
+          leagueLogo:     m.leagueLogo,
+          leagueCountry:  m.leagueCountry,
+          matches:        [],
+          earliestTime:   m.time ?? "00:00",
         });
       }
       map.get(key)!.matches.push(m);

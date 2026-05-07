@@ -282,6 +282,7 @@ overflow: "hidden",
             league: match.league.name,
             leagueId: String(match.league.id),
             leagueLogo: match.league.logo ?? undefined,
+            leagueCountry: match.country?.name ?? undefined,
             date: match.date.split("T")[0],
             time: new Date(match.date).toLocaleTimeString("fr-FR", {
               hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",

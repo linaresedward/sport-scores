@@ -20,6 +20,7 @@ export interface FavoriteMatch {
   league: string;
   leagueId?: string;
   leagueLogo?: string;
+  leagueCountry?: string;
   date: string;
   time?: string;
 }
