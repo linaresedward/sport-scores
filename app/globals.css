@@ -61,14 +61,18 @@ html.dark .dp-day:hover            { background: var(--bg-muted); color: var(--t
 *, *::before, *::after { box-sizing: border-box; }
 
 html {
-  background-color: #f1f5f9; /* Évite la bande noire dans la gouttière de scrollbar */
+  background-color: #f1f5f9;
+  /* Scrollbar viewport invisible sur Chrome/Safari/Android */
+  scrollbar-width: none;
 }
+html::-webkit-scrollbar { display: none; }
 
 html, body {
   background-color: #f1f5f9;
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
-  overflow: hidden; /* Tout le scroll se passe dans .main-content */
+  overflow-x: hidden; /* Pas de scroll horizontal */
+  /* Le scroll vertical se fait au niveau du body (pas d'un div interne) */
 }
 
 /* ===== LAYOUT GLOBAL ===== */
@@ -81,23 +85,24 @@ html, body {
 .app-body {
   display: grid;
   grid-template-columns: 224px 1fr;
-  overflow: hidden;
-  height: calc(100vh - 48px);
+  min-height: calc(100vh - 48px); /* min-height : le contenu détermine la hauteur */
 }
 
 .main-content {
-  overflow-y: auto;
   overflow-x: hidden;
   background: #f8fafc;
   padding-bottom: 80px;
-    /* Scrollbar complètement invisible → supprime la bande noire sur tous les navigateurs */
-  scrollbar-width: none;
+  /* Pas de overflow-y : le body gère le scroll → zéro bande noire */
 }
 
-.main-content::-webkit-scrollbar { display: none; }
-
-/* Sidebar : scrollbar invisible (l'utilisateur scrolle avec le touchpad/molette) */
-.sidebar-desktop { scrollbar-width: none; }
+/* Sidebar sticky : reste visible pendant le scroll du body */
+.sidebar-desktop {
+  position: sticky;
+  top: 48px;          /* collé juste sous la topbar */
+  height: calc(100vh - 48px);
+  align-self: start;  /* requis pour sticky dans un grid */
+  scrollbar-width: none;
+}
 .sidebar-desktop::-webkit-scrollbar { display: none; }
 
 /* ===== TOPBAR ===== */
@@ -506,7 +511,6 @@ html, body {
   /* Layout : Sidebar cachée, pleine largeur */
   .app-body {
     grid-template-columns: 1fr;
-    height: calc(100vh - 48px);
   }
 
   /* Sidebar masquée sur mobile */
@@ -590,7 +594,6 @@ html, body {
 
   .app-body {
     grid-template-columns: 1fr !important;
-    height: calc(100vh - 48px);
   }
 
   .topbar {

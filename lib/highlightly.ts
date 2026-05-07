@@ -20,16 +20,18 @@ export interface HMatch {
 
 export function normalizeStatus(description: string): string {
   const map: Record<string, string> = {
-    "Not started": "NS",
-    "First half":  "1H",
-    "Half time":   "HT",
-    "Second half": "2H",
-    "Extra time":  "ET",
-    "Penalties":   "P",
-    "Finished":    "Match Finished",
-    "Postponed":   "Postponed",
-    "Cancelled":   "Cancelled",
-    "Suspended":   "Suspended",
+    "Not started":              "NS",
+    "First half":               "1H",
+    "Half time":                "HT",
+    "Second half":              "2H",
+    "Extra time":               "ET",
+    "Penalties":                "P",
+    "Finished":                 "Match Finished",
+    "Finished after extra time":"FT-ET",
+    "Finished after penalties": "FT-P",
+    "Postponed":                "Postponed",
+    "Cancelled":                "Cancelled",
+    "Suspended":                "Suspended",
   }
   return map[description] ?? description
 }

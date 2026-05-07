@@ -105,8 +105,12 @@ function StatusBadge({ match, lang }: { match: HMatch; lang: string }) {
     return <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 500 }}>{time}</span>
   }
 
-  if (status === "Match Finished") {
-    return <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 600 }}>FT</span>
+  if (status === "Match Finished" || status === "FT-ET" || status === "FT-P") {
+    const label =
+      status === "FT-P"  ? (lang === "fr" ? "Ap. pén." : "AET Pen") :
+      status === "FT-ET" ? (lang === "fr" ? "Ap. prol." : "AET") :
+      "FT"
+    return <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>{label}</span>
   }
 
   if (status === "HT") {
@@ -166,12 +170,19 @@ function MatchRow({ match, lang }: { match: HMatch; lang: string }) {
   const score    = match.state.score.current
   const hasScore = score !== null && status !== "NS"
 
-  const [homeScore, awayScore] = hasScore
-    ? score.split(" - ").map(Number)
-    : [null, null]
+  let [homeScore, awayScore] = hasScore
+    ? (score!.split(" - ").map(Number) as [number, number])
+    : [null, null] as [null, null]
 
-  const homeWin = hasScore && homeScore! > awayScore!
-  const awayWin = hasScore && awayScore! > homeScore!
+  // Pénaltys : le vainqueur reçoit +1 dans l'affichage
+  if (status === "FT-P" && match.state.score.penalties && homeScore !== null) {
+    const [hp, ap] = match.state.score.penalties.split(" - ").map(Number)
+    if (hp > ap) homeScore = homeScore + 1
+    else if (ap > hp) awayScore = (awayScore ?? 0) + 1
+  }
+
+  const homeWin = homeScore !== null && awayScore !== null && homeScore > awayScore
+  const awayWin = homeScore !== null && awayScore !== null && awayScore > homeScore
 
   const homeLogo = proxyLogo(match.homeTeam.logo)
   const awayLogo = proxyLogo(match.awayTeam.logo)
