@@ -7,53 +7,23 @@ import { useFavorites, FavoriteMatch } from "@/hooks/useFavorites";
 import { normalizeStatus } from "@/lib/highlightly";
 import { useT } from "@/lib/i18n";
 
-// ─── Sons Web Audio API ───────────────────────────────────
+// ─── Sons depuis les fichiers audio ──────────────────────
 function playSound(type: "goal" | "cancelled" | "halftime" | "fulltime") {
   try {
-    const ctx = new AudioContext();
-    const beep = (
-      freq: number, start: number, dur: number,
-      wave: OscillatorType = "sine", vol = 0.22
-    ) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = wave;
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(vol, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + dur);
-    };
-
-    if (type === "goal") {
-      // Arpège ascendant joyeux : Do-Mi-Sol-Do
-      [[261, 0], [329, 0.13], [392, 0.26], [523, 0.39]].forEach(
-        ([f, t]) => beep(f, t, 0.55)
-      );
-    } else if (type === "cancelled") {
-      // Buzzer descendant
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(460, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.65);
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.65);
-    } else if (type === "halftime") {
-      // Coup de sifflet unique
-      beep(1850, 0, 0.42, "sine", 0.18);
-    } else if (type === "fulltime") {
-      // Double coup de sifflet
-      beep(1850, 0,   0.32, "sine", 0.18);
-      beep(1850, 0.4, 0.32, "sine", 0.18);
+    if (type === "fulltime") {
+      // Fin de match = mi-temps × 2
+      const a = new Audio("/sounds/mi-temps.mp3")
+      a.play().catch(() => {})
+      a.addEventListener("ended", () => {
+        new Audio("/sounds/mi-temps.mp3").play().catch(() => {})
+      })
+    } else {
+      const file = type === "goal" ? "but.mp3"
+                 : type === "cancelled" ? "but-annule.mp3"
+                 : "mi-temps.mp3"
+      new Audio(`/sounds/${file}`).play().catch(() => {})
     }
-    setTimeout(() => ctx.close(), 4000);
-  } catch { /* AudioContext indisponible */ }
+  } catch { /* audio indisponible */ }
 }
 
 // ─── Types ────────────────────────────────────────────────
@@ -61,8 +31,7 @@ const LIVE_STATUSES = ["1H", "HT", "2H", "ET", "P"];
 
 interface GoalFlash {
   team: "home" | "away";
-  text: string;         // "BUT !" ou "But annulé"
-  type: "goal" | "cancelled";
+  phase: "pending" | "confirmed" | "cancelled";
 }
 
 interface MatchLive {
@@ -173,17 +142,17 @@ function MatchRow({
   return (
     <div style={{ position: "relative" }}>
       {/* Flash BUT / But annulé */}
-      {flash && (
+      {flash && flash.phase !== "pending" && (
         <div style={{
           position: "absolute", top: 0, left: 0, right: 0, zIndex: 10,
-          background: flash.type === "goal" ? "rgba(22,163,74,0.92)" : "rgba(239,68,68,0.88)",
+          background: flash.phase === "confirmed" ? "rgba(22,163,74,0.92)" : "rgba(239,68,68,0.88)",
           color: "#fff", textAlign: "center",
           padding: "5px 12px", fontSize: 13, fontWeight: 700,
           animation: "goalFlashAnim 5s forwards",
           borderRadius: "0 0 8px 8px",
           pointerEvents: "none",
         }}>
-          {flash.team === "home" ? match.homeTeam : match.awayTeam} — {flash.text}
+          {flash.team === "home" ? match.homeTeam : match.awayTeam} — {flash.phase === "confirmed" ? "BUT !" : "BUT ANNULÉ"}
         </div>
       )}
 
@@ -195,12 +164,12 @@ function MatchRow({
         display: "flex", alignItems: "center",
         padding: "10px 14px", gap: 10,
         borderBottom: "1px solid var(--border)",
-        background: flash ? (flash.type === "goal" ? "rgba(22,163,74,0.04)" : "rgba(239,68,68,0.04)") : "transparent",
+        background: flash ? (flash.phase === "confirmed" ? "rgba(22,163,74,0.04)" : "rgba(239,68,68,0.04)") : "transparent",
         transition: "background 0.3s",
         cursor: "pointer",
       }}
         onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-muted)")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = flash ? (flash.type === "goal" ? "rgba(22,163,74,0.04)" : "rgba(239,68,68,0.04)") : "transparent")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = flash ? (flash.phase === "confirmed" ? "rgba(22,163,74,0.04)" : "rgba(239,68,68,0.04)") : "transparent")}
       >
         {/* Heure / statut */}
         <div style={{ width: 48, flexShrink: 0, display: "flex", justifyContent: "center" }}>
@@ -229,6 +198,9 @@ function MatchRow({
               {match.homeTeam}
             </span>
             <RedCard count={live?.homeRedCards ?? 0} />
+            {flash?.team === "home" && flash.phase === "pending" && (
+              <span style={{ color: '#ef4444', fontSize: 8, animation: 'livePulse 0.7s ease-in-out infinite', flexShrink: 0 }}>⬤</span>
+            )}
           </div>
           {/* Extérieur */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -244,6 +216,9 @@ function MatchRow({
               {match.awayTeam}
             </span>
             <RedCard count={live?.awayRedCards ?? 0} />
+            {flash?.team === "away" && flash.phase === "pending" && (
+              <span style={{ color: '#ef4444', fontSize: 8, animation: 'livePulse 0.7s ease-in-out infinite', flexShrink: 0 }}>⬤</span>
+            )}
           </div>
         </div>
 
@@ -407,15 +382,22 @@ export default function FavorisClient() {
           if (pr && pr.score !== null && score !== null && pr.score !== score) {
             const [ph, pa] = pr.score.split(" - ").map(Number);
             const [nh, na] = score.split(" - ").map(Number);
-            if (nh > ph)      { goalFlash = { team: "home", text: "BUT !", type: "goal" };      playSound("goal"); }
-            else if (na > pa) { goalFlash = { team: "away", text: "BUT !", type: "goal" };      playSound("goal"); }
-            else if (nh < ph) { goalFlash = { team: "home", text: "But annulé", type: "cancelled" }; playSound("cancelled"); }
-            else if (na < pa) { goalFlash = { team: "away", text: "But annulé", type: "cancelled" }; playSound("cancelled"); }
-
             const id = fav.id;
-            setTimeout(() => {
-              setLiveStates((s) => ({ ...s, [id]: { ...s[id], goalFlash: null } }));
-            }, 5500);
+
+            if (nh > ph || na > pa) {
+              // But marqué : point clignotant 4s, puis BUT + son
+              goalFlash = { team: nh > ph ? "home" : "away", phase: "pending" };
+              setTimeout(() => {
+                setLiveStates(s => s[id] ? { ...s, [id]: { ...s[id], goalFlash: { team: nh > ph ? "home" : "away", phase: "confirmed" } } } : s);
+                playSound("goal");
+                setTimeout(() => setLiveStates(s => ({ ...s, [id]: { ...s[id], goalFlash: null } })), 8000);
+              }, 4000);
+            } else if (nh < ph || na < pa) {
+              // But annulé : afficher immédiatement + son
+              goalFlash = { team: nh < ph ? "home" : "away", phase: "cancelled" };
+              playSound("cancelled");
+              setTimeout(() => setLiveStates(s => ({ ...s, [id]: { ...s[id], goalFlash: null } })), 6000);
+            }
           }
 
           if (pr && pr.status !== "HT" && status === "HT")             playSound("halftime");

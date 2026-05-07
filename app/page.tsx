@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import MatchSkeleton from './components/MatchSkeleton'
 import { getMatchesByDate, HMatch, normalizeStatus } from '../lib/highlightly'
 import { translateStatus, translateCountry as _translateCountry } from '../lib/labels'
@@ -12,6 +12,21 @@ import DatePicker from './components/DatePicker'
 import StandingsPanel from './components/StandingsPanel'
 
 const LIVE_STATUSES = ["1H", "HT", "2H", "ET", "P"]
+
+// ─── Indicateur visuel de but ────────────────────────────
+interface GoalFlash { team: 'home' | 'away'; phase: 'pending' | 'confirmed' | 'cancelled' }
+
+function GoalIndicator({ phase }: { phase: GoalFlash['phase'] }) {
+  if (phase === 'pending') return (
+    <span style={{ color: '#ef4444', fontSize: 8, animation: 'livePulse 0.7s ease-in-out infinite', flexShrink: 0 }}>⬤</span>
+  )
+  if (phase === 'confirmed') return (
+    <span style={{ fontSize: 9, fontWeight: 800, color: '#16a34a', background: '#dcfce7', borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>BUT !</span>
+  )
+  return (
+    <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444', background: '#fee2e2', borderRadius: 4, padding: '1px 4px', flexShrink: 0, whiteSpace: 'nowrap' }}>ANNULÉ</span>
+  )
+}
 
 // ─── Ordre sidebar (Internationale → Favorites → Autres) ───
 const INTERNATIONAL_IDS = ["2486","3337","722432","1635","4188","5890","8443"]
@@ -158,7 +173,7 @@ function StatusBadge({ match, lang }: { match: HMatch; lang: string }) {
 }
 
 // ─── Ligne de match ───────────────────────────────────────
-function MatchRow({ match, lang }: { match: HMatch; lang: string }) {
+function MatchRow({ match, lang, goalFlash }: { match: HMatch; lang: string; goalFlash?: GoalFlash }) {
   const status   = normalizeStatus(match.state.description)
   const isLive   = LIVE_STATUSES.includes(status)
   const score    = match.state.score.current
@@ -219,6 +234,7 @@ overflow: "hidden",
               fontWeight: homeWin ? 700 : 400,
               color: homeWin ? "var(--text-primary)" : "var(--text-secondary)",
             }}>{match.homeTeam.name}</span>
+            {goalFlash?.team === 'home' && <GoalIndicator phase={goalFlash.phase} />}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
             {awayLogo
@@ -232,6 +248,7 @@ overflow: "hidden",
               fontWeight: awayWin ? 700 : 400,
               color: awayWin ? "var(--text-primary)" : "var(--text-secondary)",
             }}>{match.awayTeam.name}</span>
+            {goalFlash?.team === 'away' && <GoalIndicator phase={goalFlash.phase} />}
           </div>
         </div>
 
@@ -274,8 +291,8 @@ overflow: "hidden",
 }
 
 // ─── Section ligue ────────────────────────────────────────
-function LeagueSection({ leagueName, matches, lang }: {
-  leagueName: string; matches: HMatch[]; lang: string
+function LeagueSection({ leagueName, matches, lang, goalFlashes }: {
+  leagueName: string; matches: HMatch[]; lang: string; goalFlashes: Record<string, GoalFlash>
 }) {
   const logo        = proxyLogo(matches[0]?.league?.logo)
   const displayName = matches[0]?.league?.name ?? leagueName
@@ -365,7 +382,7 @@ function LeagueSection({ leagueName, matches, lang }: {
 
         {/* Matchs */}
         <div>
-          {sortedMatches.map((m, idx) => <MatchRow key={`${m.id}-${idx}`} match={m} lang={lang} />)}
+          {sortedMatches.map((m, idx) => <MatchRow key={`${m.id}-${idx}`} match={m} lang={lang} goalFlash={goalFlashes[String(m.id)]} />)}
         </div>
       </div>
     </>
@@ -380,11 +397,50 @@ export default function HomePage() {
   const [matchesByLeague, setMatchesByLeague] = useState<Record<string, HMatch[]>>({})
   const [loading, setLoading]                 = useState(true)
   const [lastRefresh, setLastRefresh]         = useState<Date | null>(null)
+  const [goalFlashes, setGoalFlashes]         = useState<Record<string, GoalFlash>>({})
+  const prevScoresRef                         = useRef<Record<string, string | null>>({})
 
   const load = useCallback(async (showLoading = true) => {
-    if (showLoading) { setLoading(true); setMatchesByLeague({}) }
+    if (showLoading) { setLoading(true); setMatchesByLeague({}); setGoalFlashes({}) }
     const dateStr = formatDate(selectedDate)
     const grouped = await getMatchesByDate(dateStr)
+
+    // ── Détection de changement de score (auto-refresh uniquement) ──
+    const allMatches = Object.values(grouped).flat()
+    for (const match of allMatches) {
+      const id       = String(match.id)
+      const newScore = match.state.score.current
+      const prevScore = prevScoresRef.current[id]
+      const status   = normalizeStatus(match.state.description)
+
+      if (!showLoading && prevScore !== undefined && LIVE_STATUSES.includes(status)
+          && prevScore !== null && newScore !== null && prevScore !== newScore) {
+        const [ph, pa] = prevScore.split(' - ').map(Number)
+        const [nh, na] = newScore.split(' - ').map(Number)
+        let team: 'home' | 'away' | null = null
+        let cancelled = false
+        if      (nh > ph) team = 'home'
+        else if (na > pa) team = 'away'
+        else if (nh < ph) { team = 'home'; cancelled = true }
+        else if (na < pa) { team = 'away'; cancelled = true }
+
+        if (team) {
+          const t = team
+          setGoalFlashes(prev => ({ ...prev, [id]: { team: t, phase: cancelled ? 'cancelled' : 'pending' } }))
+          if (!cancelled) {
+            // 4s → confirmed, puis effacement après 8s
+            setTimeout(() => {
+              setGoalFlashes(prev => prev[id] ? { ...prev, [id]: { ...prev[id], phase: 'confirmed' } } : prev)
+              setTimeout(() => setGoalFlashes(prev => { const n = { ...prev }; delete n[id]; return n }), 8000)
+            }, 4000)
+          } else {
+            setTimeout(() => setGoalFlashes(prev => { const n = { ...prev }; delete n[id]; return n }), 6000)
+          }
+        }
+      }
+      prevScoresRef.current[id] = newScore
+    }
+
     setMatchesByLeague(grouped)
     setLastRefresh(new Date())
     if (showLoading) setLoading(false)
@@ -470,6 +526,7 @@ export default function HomePage() {
               leagueName={league}
               matches={matchesByLeague[league]}
               lang={lang}
+              goalFlashes={goalFlashes}
             />
           ))}
         </div>
