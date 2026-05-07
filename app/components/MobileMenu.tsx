@@ -6,14 +6,23 @@ import { useT } from "@/lib/i18n";
 import LangToggle from "./LangToggle";
 import ThemeToggle from "./ThemeToggle";
 
+// IDs réels Highlightly — ordre identique à la sidebar desktop
 const PRIORITY_LEAGUES = [
-  { id: "17423",  name: "UEFA Champions League", countryFr: "UEFA",       countryEn: "UEFA",    logo: "https://r2.thesportsdb.com/images/media/league/badge/facv1u1742998896.png", darkBg: true },
-  { id: "19374",  name: "UEFA Europa League",    countryFr: "UEFA",       countryEn: "UEFA",    logo: "https://r2.thesportsdb.com/images/media/league/badge/mlsr7d1718774547.png", darkBg: true },
-  { id: "33973",  name: "Premier League",        countryFr: "Angleterre", countryEn: "England", logo: "https://highlightly.net/soccer/images/leagues/33973.png",  darkBg: false },
-  { id: "52695",  name: "Ligue 1",               countryFr: "France",     countryEn: "France",  logo: "https://highlightly.net/soccer/images/leagues/52695.png",  darkBg: false },
-  { id: "119924", name: "La Liga",               countryFr: "Espagne",    countryEn: "Spain",   logo: "https://highlightly.net/soccer/images/leagues/119924.png", darkBg: false },
-  { id: "58588",  name: "Bundesliga",            countryFr: "Allemagne",  countryEn: "Germany", logo: "https://highlightly.net/soccer/images/leagues/58588.png",  darkBg: false },
-  { id: "115669", name: "Serie A",               countryFr: "Italie",     countryEn: "Italy",   logo: "https://highlightly.net/soccer/images/leagues/115669.png", darkBg: false },
+  { id: "2486",   name: "Champions League",         countryFr: "UEFA",         countryEn: "UEFA",         logo: "https://r2.thesportsdb.com/images/media/league/badge/facv1u1742998896.png", darkBg: true  },
+  { id: "3337",   name: "Europa League",            countryFr: "UEFA",         countryEn: "UEFA",         logo: "https://r2.thesportsdb.com/images/media/league/badge/mlsr7d1718774547.png", darkBg: true  },
+  { id: "722432", name: "Conference League",        countryFr: "UEFA",         countryEn: "UEFA",         logo: "https://highlightly.net/soccer/images/leagues/722432.png", darkBg: false },
+  { id: "1635",   name: "FIFA World Cup",           countryFr: "International",countryEn: "International",logo: "https://highlightly.net/soccer/images/leagues/1635.png",   darkBg: false },
+  { id: "4188",   name: "UEFA Euro",                countryFr: "Europe",       countryEn: "Europe",       logo: "https://highlightly.net/soccer/images/leagues/4188.png",   darkBg: false },
+  { id: "5890",   name: "Africa Cup of Nations",    countryFr: "Afrique",      countryEn: "Africa",       logo: "https://highlightly.net/soccer/images/leagues/5890.png",   darkBg: false },
+  { id: "8443",   name: "Copa América",             countryFr: "Amér. du Sud", countryEn: "South America",logo: "https://highlightly.net/soccer/images/leagues/8443.png",   darkBg: false },
+  { id: "33973",  name: "Premier League",           countryFr: "Angleterre",   countryEn: "England",      logo: "https://highlightly.net/soccer/images/leagues/33973.png",  darkBg: false },
+  { id: "67162",  name: "Bundesliga",               countryFr: "Allemagne",    countryEn: "Germany",      logo: "https://highlightly.net/soccer/images/leagues/67162.png",  darkBg: false },
+  { id: "119924", name: "La Liga",                  countryFr: "Espagne",      countryEn: "Spain",        logo: "https://highlightly.net/soccer/images/leagues/119924.png", darkBg: false },
+  { id: "52695",  name: "Ligue 1",                  countryFr: "France",       countryEn: "France",       logo: "https://highlightly.net/soccer/images/leagues/52695.png",  darkBg: false },
+  { id: "115669", name: "Serie A",                  countryFr: "Italie",       countryEn: "Italy",        logo: "https://highlightly.net/soccer/images/leagues/115669.png", darkBg: false },
+  { id: "75672",  name: "Eredivisie",               countryFr: "Pays-Bas",     countryEn: "Netherlands",  logo: "https://highlightly.net/soccer/images/leagues/75672.png",  darkBg: false },
+  { id: "80778",  name: "Primeira Liga",            countryFr: "Portugal",     countryEn: "Portugal",     logo: "https://highlightly.net/soccer/images/leagues/80778.png",  darkBg: false },
+  { id: "173537", name: "Süper Lig",                countryFr: "Turquie",      countryEn: "Turkey",       logo: "https://highlightly.net/soccer/images/leagues/173537.png", darkBg: false },
 ]
 
 const PRIORITY_IDS = new Set(PRIORITY_LEAGUES.map(l => l.id))

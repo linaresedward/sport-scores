@@ -7,29 +7,29 @@ import { useT } from "@/lib/i18n";
 
 // ─── INTERNATIONALE ─────────────────────────────────────────
 const INTERNATIONAL_LEAGUES = [
-  { id: "17423", nameFr: "Ligue des Champions", nameEn: "Champions League",
+  { id: "2486",   nameFr: "Ligue des Champions", nameEn: "Champions League",
     countryFr: "UEFA", countryEn: "UEFA",
     logo: "https://r2.thesportsdb.com/images/media/league/badge/facv1u1742998896.png",
-    darkBg: true },   // ← logo blanc, fond sombre
-  { id: "19374", nameFr: "Ligue Europa", nameEn: "Europa League",
+    darkBg: true },
+  { id: "3337",   nameFr: "Ligue Europa", nameEn: "Europa League",
     countryFr: "UEFA", countryEn: "UEFA",
     logo: "https://r2.thesportsdb.com/images/media/league/badge/mlsr7d1718774547.png",
-    darkBg: true },   // ← logo blanc, fond sombre
-  { id: "20696", nameFr: "Ligue Conférence", nameEn: "Conference League",
+    darkBg: true },
+  { id: "722432", nameFr: "Ligue Conférence", nameEn: "Conference League",
     countryFr: "UEFA", countryEn: "UEFA",
-    logo: "https://highlightly.net/soccer/images/leagues/20696.png", darkBg: false },
-  { id: "28543", nameFr: "Coupe du Monde", nameEn: "FIFA World Cup",
+    logo: "https://highlightly.net/soccer/images/leagues/722432.png", darkBg: false },
+  { id: "1635",   nameFr: "Coupe du Monde", nameEn: "FIFA World Cup",
     countryFr: "International", countryEn: "International",
-    logo: "https://highlightly.net/soccer/images/leagues/28543.png", darkBg: false },
-  { id: "6132",  nameFr: "UEFA Euro", nameEn: "UEFA Euro",
+    logo: "https://highlightly.net/soccer/images/leagues/1635.png", darkBg: false },
+  { id: "4188",   nameFr: "UEFA Euro", nameEn: "UEFA Euro",
     countryFr: "Europe", countryEn: "Europe",
-    logo: "https://highlightly.net/soccer/images/leagues/6132.png", darkBg: false },
-  { id: "117551", nameFr: "Coupe d'Afrique des Nations", nameEn: "Africa Cup of Nations",
+    logo: "https://highlightly.net/soccer/images/leagues/4188.png", darkBg: false },
+  { id: "5890",   nameFr: "Coupe d'Afrique des Nations", nameEn: "Africa Cup of Nations",
     countryFr: "Afrique", countryEn: "Africa",
-    logo: "https://highlightly.net/soccer/images/leagues/117551.png", darkBg: false },
-  { id: "112759", nameFr: "Copa América", nameEn: "Copa América",
+    logo: "https://highlightly.net/soccer/images/leagues/5890.png", darkBg: false },
+  { id: "8443",   nameFr: "Copa América", nameEn: "Copa América",
     countryFr: "Amér. du Sud", countryEn: "South America",
-    logo: "https://highlightly.net/soccer/images/leagues/112759.png", darkBg: false },
+    logo: "https://highlightly.net/soccer/images/leagues/8443.png", darkBg: false },
 ]
 
 // ─── LIGUES FAVORITES ───────────────────────────────────────
@@ -256,7 +256,7 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar-desktop" style={{
-      width: "220px", minHeight: "100vh",
+      width: "220px",
       backgroundColor: "var(--bg-surface)",
       borderRight: "1px solid var(--border)",
       padding: "16px 8px 40px",

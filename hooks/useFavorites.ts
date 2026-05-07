@@ -18,8 +18,10 @@ export interface FavoriteMatch {
   homeLogo?: string;
   awayLogo?: string;
   league: string;
+  leagueId?: string;
+  leagueLogo?: string;
   date: string;
-  time?: string; // ← nouveau : heure du match ex: "19:00"
+  time?: string;
 }
 
 const STORAGE_KEY       = "sport-scores-favorites";
@@ -42,7 +44,14 @@ function loadFavMatches(): FavoriteMatch[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY_MATCH);
-    return raw ? JSON.parse(raw) : [];
+    const all: FavoriteMatch[] = raw ? JSON.parse(raw) : [];
+    // Auto-suppression des matchs d'un jour passé
+    const today = new Date().toISOString().split("T")[0];
+    const active = all.filter((m) => m.date >= today);
+    if (active.length < all.length) {
+      localStorage.setItem(STORAGE_KEY_MATCH, JSON.stringify(active));
+    }
+    return active;
   } catch { return []; }
 }
 

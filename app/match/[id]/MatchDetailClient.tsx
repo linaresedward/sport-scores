@@ -265,9 +265,6 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         <div className="text-center mb-6">
           <p className="text-gray-400 text-sm mb-4">{match.strLeague}</p>
           <MatchTimerDisplay timer={timer} />
-          {isLive && (
-            <p className="text-xs text-gray-600 mt-3">Mise à jour toutes les 30s</p>
-          )}
         </div>
 
         {/* ── Équipes + score avec étoiles ── */}

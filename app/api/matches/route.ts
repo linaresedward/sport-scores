@@ -3,23 +3,23 @@ import { NextRequest, NextResponse } from "next/server"
 const BASE = "https://sports.highlightly.net/football"
 const KEY  = process.env.HIGHLIGHTLY_KEY ?? ""
 
-// ⚠️ Ordre exact d'affichage des ligues prioritaires
+// ⚠️ Ordre exact d'affichage des ligues prioritaires (IDs Highlightly réels)
 const PRIORITY_LEAGUE_IDS = [
-  17423,  // UEFA Champions League
-  19374,  // UEFA Europa League
-  20696,  // UEFA Conference League
-  28543,  // FIFA World Cup
-  6132,   // UEFA Euro
-  117551, // Africa Cup of Nations
-  112759, // Copa América
-  33973,  // Premier League
+  2486,   // UEFA Champions League
+  3337,   // UEFA Europa League
+  722432, // UEFA Conference League
+  1635,   // FIFA World Cup
+  4188,   // UEFA Euro Championship
+  5890,   // Africa Cup of Nations
+  8443,   // Copa América
+  33973,  // Premier League (England)
   67162,  // Bundesliga
   119924, // La Liga
   52695,  // Ligue 1
-  115669, // Serie A Italie
+  115669, // Serie A
   75672,  // Eredivisie
   80778,  // Primeira Liga
-  173537,  // Süper Lig
+  173537, // Süper Lig
 ]
 
 const NON_PRIORITY_IDS = new Set(["61205", "62056"]) // Serie A / B Brésil → toujours en bas
@@ -35,12 +35,14 @@ function sortGrouped(grouped: Record<string, any[]>): Record<string, any[]> {
     }
   }
 
-  // 2. Reste → alphabétique, Brésil toujours en bas
+  // 2. Reste → alphabétique par pays puis par nom de ligue, Brésil toujours en bas
   const remaining = Object.entries(grouped).sort(([keyA, a], [keyB, b]) => {
     const aLast = NON_PRIORITY_IDS.has(keyA)
     const bLast = NON_PRIORITY_IDS.has(keyB)
     if (aLast && !bLast) return 1
     if (bLast && !aLast) return -1
+    const cmp = (a[0]?.country?.name ?? "").localeCompare(b[0]?.country?.name ?? "")
+    if (cmp !== 0) return cmp
     return (a[0]?.league?.name ?? "").localeCompare(b[0]?.league?.name ?? "")
   })
 

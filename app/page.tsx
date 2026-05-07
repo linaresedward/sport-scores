@@ -13,7 +13,7 @@ import StandingsPanel from './components/StandingsPanel'
 const LIVE_STATUSES = ["1H", "HT", "2H", "ET", "P"]
 
 // ─── Ordre sidebar (Internationale → Favorites → Autres) ───
-const INTERNATIONAL_IDS = ["17423","19374","20696","28543","6132","117551","112759"]
+const INTERNATIONAL_IDS = ["2486","3337","722432","1635","4188","5890","8443"]
 const FAVORITE_IDS      = ["33973","67162","119924","52695","115669","75672","80778","173537"]
 const ALL_FIXED_IDS     = new Set([...INTERNATIONAL_IDS, ...FAVORITE_IDS])
 
@@ -60,30 +60,27 @@ function proxyLogo(url: string | null | undefined): string | null {
 }
 
 // ─── Tri des ligues dans l'ordre sidebar ───────────────────
+// Ordre final : Internationale (ordre sidebar) → Favorites (ordre sidebar) → Autres (pays A→Z, ligue A→Z)
 function sortLeagues(grouped: Record<string, HMatch[]>): string[] {
-  const keys = Object.keys(grouped)
-
-  function getLeagueId(key: string): string {
-    return String(grouped[key]?.[0]?.league?.id ?? "")
-  }
-
-  const international: string[] = []
-  const favorites: string[]     = []
+  const international: string[] = []   // tableau sparse positionné par index sidebar
+  const favorites: string[]     = []   // tableau sparse positionné par index sidebar
   const others: string[]        = []
 
-  for (const key of keys) {
-    const id = getLeagueId(key)
-    const intIdx = INTERNATIONAL_IDS.indexOf(id)
-    const favIdx = FAVORITE_IDS.indexOf(id)
-    if (intIdx !== -1) international[intIdx] = key
-    else if (favIdx !== -1) favorites[favIdx] = key
-    else others.push(key)
+  for (const key of Object.keys(grouped)) {
+    // La clé est l'ID de ligue en string (ex: "17423")
+    const intIdx = INTERNATIONAL_IDS.indexOf(key)
+    const favIdx = FAVORITE_IDS.indexOf(key)
+    if (intIdx !== -1)      international[intIdx] = key
+    else if (favIdx !== -1) favorites[favIdx]     = key
+    else                    others.push(key)
   }
 
   others.sort((a, b) => {
     const cA = grouped[a]?.[0]?.country?.name ?? ""
     const cB = grouped[b]?.[0]?.country?.name ?? ""
-    return cA.localeCompare(cB) || a.localeCompare(b)
+    const cmp = cA.localeCompare(cB)
+    if (cmp !== 0) return cmp
+    return (grouped[a]?.[0]?.league?.name ?? "").localeCompare(grouped[b]?.[0]?.league?.name ?? "")
   })
 
   return [...international.filter(Boolean), ...favorites.filter(Boolean), ...others]
@@ -257,6 +254,8 @@ overflow: "hidden",
             homeLogo: homeLogo ?? undefined,
             awayLogo: awayLogo ?? undefined,
             league: match.league.name,
+            leagueId: String(match.league.id),
+            leagueLogo: match.league.logo ?? undefined,
             date: match.date.split("T")[0],
             time: new Date(match.date).toLocaleTimeString("fr-FR", {
               hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",

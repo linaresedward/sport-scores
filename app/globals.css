@@ -23,7 +23,7 @@ html.dark {
   --text-muted:     #475569;
   --accent:         #3b82f6;
   --accent-bg:      rgba(59,130,246,0.12);
-
+  background-color: var(--bg-page); /* Gouttière scrollbar en dark mode */
 }
 
 html.dark body                     { background-color: var(--bg-page); color: var(--text-primary); }
@@ -60,12 +60,16 @@ html.dark .dp-day:hover            { background: var(--bg-muted); color: var(--t
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; }
 
+html {
+  background-color: #f1f5f9; /* Évite la bande noire dans la gouttière de scrollbar */
+}
+
 html, body {
   background-color: #f1f5f9;
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-  scrollbar-gutter: stable; 
+  overflow: hidden; /* Tout le scroll se passe dans .main-content, pas dans le body */
+  height: 100%;
 }
 
 /* ===== LAYOUT GLOBAL ===== */
@@ -84,10 +88,23 @@ html, body {
 
 .main-content {
   overflow-y: auto;
-  overflow-x: hidden; /* ← ajoute ça */
+  overflow-x: hidden;
   background: #f8fafc;
   padding-bottom: 80px;
+  /* Scrollbar discret : 4px, pas de track visible → supprime la bande droite */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148,163,184,0.4) transparent;
 }
+
+.main-content::-webkit-scrollbar        { width: 4px; }
+.main-content::-webkit-scrollbar-track  { background: transparent; }
+.main-content::-webkit-scrollbar-thumb  { background: rgba(148,163,184,0.5); border-radius: 2px; }
+
+html.dark .main-content::-webkit-scrollbar-thumb { background: rgba(71,85,105,0.6); }
+
+/* Sidebar : scrollbar invisible (l'utilisateur scrolle avec le touchpad/molette) */
+.sidebar-desktop { scrollbar-width: none; }
+.sidebar-desktop::-webkit-scrollbar { display: none; }
 
 /* ===== TOPBAR ===== */
 .topbar {

@@ -437,7 +437,6 @@ export default function MatchDetailHighlightly({ matchId }: { matchId: string })
           {/* Statut */}
           <div style={{textAlign:"center",marginBottom:24}}>
             <StatusDisplay match={match}/>
-            {isLive && <p style={{fontSize:11,color:"var(--text-muted)",marginTop:8}}>{t('updates_30s')}</p>}
           </div>
 
           {/* Équipes + Score + Étoiles favoris */}
