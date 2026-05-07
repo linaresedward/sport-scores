@@ -211,7 +211,7 @@ function MatchRow({ ev, lang }: { ev: TennisEvent; lang: string }) {
         {isLive ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', animation: 'tPulse 1.4s infinite' }} />
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#ef4444' }}>LIVE</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#ef4444' }}>{lang === 'fr' ? 'EN DIRECT' : 'LIVE'}</span>
           </div>
         ) : isFinished ? (
           <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, textAlign: 'center' }}>
@@ -271,16 +271,38 @@ function TournamentBlock({ group, lang, circuit }: { group: TGroup; lang: string
   }
 
   const cityLabel = group.city ? group.city : group.tournament
-  const typeLabel = lang === 'fr'
-    ? circuit + ' - SIMPLES: ' + cityLabel + ' (' + group.country + '), ' + group.surface.label
-    : circuit + ' - SINGLES: ' + cityLabel + ' (' + group.country + '), ' + group.surface.label
 
   return (
     <div style={{ background: 'var(--bg-surface)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg-muted)' }}>
-        <span style={{ fontSize: 18 }}>{group.flag}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{typeLabel}</span>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: group.surface.color, flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg-muted)' }}>
+        {/* Circuit badge */}
+        <div style={{
+          padding: '2px 7px', borderRadius: 5, flexShrink: 0,
+          background: circuit === 'ATP' ? 'rgba(59,130,246,0.15)' : 'rgba(236,72,153,0.15)',
+          border: '1px solid ' + (circuit === 'ATP' ? 'rgba(59,130,246,0.4)' : 'rgba(236,72,153,0.4)'),
+        }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: circuit === 'ATP' ? '#2563eb' : '#db2777', letterSpacing: '.06em' }}>{circuit}</span>
+        </div>
+        {/* Drapeau + nom tournoi + ville */}
+        <span style={{ fontSize: 14 }}>{group.flag}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {group.tournament}
+          </div>
+          {cityLabel !== group.tournament && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{cityLabel}{group.country ? ' · ' + group.country : ''}</div>
+          )}
+        </div>
+        {/* Surface pill coloré */}
+        <div style={{
+          padding: '2px 8px', borderRadius: 4, flexShrink: 0,
+          background: group.surface.color + '22',
+          border: '1px solid ' + group.surface.color + '55',
+        }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: group.surface.color, letterSpacing: '.04em' }}>
+            {group.surface.label.toUpperCase()}
+          </span>
+        </div>
       </div>
       {[...byPhase.entries()].map(function(entry) {
         const phase = entry[0]
@@ -300,7 +322,8 @@ function TournamentBlock({ group, lang, circuit }: { group: TGroup; lang: string
 
 export default function TennisClient() {
   const { lang } = useT()
-  const [tab, setTab] = useState<'results' | 'upcoming'>('results')
+  const [tab,     setTab]     = useState<'results' | 'upcoming'>('results')
+  const [circuit, setCircuit] = useState<'all' | 'ATP' | 'WTA'>('all')
   const [atpPast, setAtpPast] = useState<TennisEvent[]>([])
   const [wtaPast, setWtaPast] = useState<TennisEvent[]>([])
   const [atpNext, setAtpNext] = useState<TennisEvent[]>([])
@@ -357,11 +380,28 @@ export default function TennisClient() {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 4, background: 'var(--bg-muted)', padding: 4, borderRadius: 12, border: '1px solid var(--border)', marginBottom: 24 }}>
+      {/* Onglets résultats / à venir */}
+      <div style={{ display: 'flex', gap: 4, background: 'var(--bg-muted)', padding: 4, borderRadius: 12, border: '1px solid var(--border)', marginBottom: 12 }}>
         {(['results', 'upcoming'] as const).map(function(t) {
           return (
             <button key={t} onClick={function() { setTab(t) }} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all .15s', background: tab === t ? 'var(--accent)' : 'transparent', color: tab === t ? '#fff' : 'var(--text-muted)' }}>
               {t === 'results' ? (lang === 'fr' ? '📋 Résultats' : '📋 Results') : (lang === 'fr' ? '📅 À venir' : '📅 Upcoming')}
+            </button>
+          )
+        })}
+      </div>
+      {/* Filtre circuit ATP / WTA */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+        {(['all', 'ATP', 'WTA'] as const).map(function(c) {
+          const active = circuit === c
+          const color = c === 'WTA' ? '#db2777' : 'var(--accent)'
+          return (
+            <button key={c} onClick={function() { setCircuit(c) }} style={{
+              padding: '5px 14px', borderRadius: 8, border: '1px solid ' + (active ? color : 'var(--border)'),
+              background: active ? color : 'transparent', color: active ? '#fff' : 'var(--text-muted)',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all .15s',
+            }}>
+              {c === 'all' ? (lang === 'fr' ? 'Tous' : 'All') : c}
             </button>
           )
         })}
@@ -375,25 +415,29 @@ export default function TennisClient() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {atpGroups.length > 0 && (
+          {(circuit === 'all' || circuit === 'ATP') && atpGroups.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.25)' }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)', letterSpacing: '.07em' }}>ATP</span>
+              {circuit === 'all' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.25)' }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)', letterSpacing: '.07em' }}>ATP</span>
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{lang === 'fr' ? 'Circuit Masculin' : "Men's Tour"}</span>
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{lang === 'fr' ? 'Circuit Masculin' : "Men's Tour"}</span>
-              </div>
+              )}
               {atpGroups.map(function(g) { return <TournamentBlock key={g.key} group={g} lang={lang} circuit="ATP" /> })}
             </div>
           )}
-          {wtaGroups.length > 0 && (
+          {(circuit === 'all' || circuit === 'WTA') && wtaGroups.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(236,72,153,0.12)', border: '1px solid rgba(236,72,153,0.25)' }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: '#ec4899', letterSpacing: '.07em' }}>WTA</span>
+              {circuit === 'all' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(236,72,153,0.12)', border: '1px solid rgba(236,72,153,0.25)' }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#ec4899', letterSpacing: '.07em' }}>WTA</span>
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{lang === 'fr' ? 'Circuit Féminin' : "Women's Tour"}</span>
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{lang === 'fr' ? 'Circuit Féminin' : "Women's Tour"}</span>
-              </div>
+              )}
               {wtaGroups.map(function(g) { return <TournamentBlock key={g.key} group={g} lang={lang} circuit="WTA" /> })}
             </div>
           )}

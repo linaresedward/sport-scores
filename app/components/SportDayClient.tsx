@@ -88,7 +88,7 @@ function getStatusLabel(status: string, lang: string): { label: string; isLive: 
   if (status === 'Q2')  return { label: 'Q2', isLive: true }
   if (status === 'Q3')  return { label: 'Q3', isLive: true }
   if (status === 'Q4')  return { label: 'Q4', isLive: true }
-  if (isLive)           return { label: 'LIVE', isLive: true }
+  if (isLive)           return { label: lang === 'fr' ? 'EN DIRECT' : 'LIVE', isLive: true }
   return { label: status, isLive: false }
 }
 
@@ -138,10 +138,15 @@ function MatchRow({ ev, lang }: { ev: SportEvent; lang: string }) {
   const nQ    = Math.max(homeQ.length, awayQ.length)
   const showQuarters = nQ > 0 && hasScore
 
+  const isLiveMatch = statusInfo.isLive
+
   return (
     <Link href={'/match/' + ev.idEvent} className="bk-row" style={{
       display: 'flex', alignItems: 'stretch', textDecoration: 'none',
-      borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', minHeight: 56,
+      borderBottom: '1px solid var(--border)',
+      background: isLiveMatch ? 'rgba(239,68,68,0.04)' : 'var(--bg-surface)',
+      borderLeft: isLiveMatch ? '3px solid #ef4444' : '3px solid transparent',
+      minHeight: 56,
     }}>
       {/* Statut / heure */}
       <div style={{ width: 68, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px' }}>
