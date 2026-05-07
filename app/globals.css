@@ -60,22 +60,14 @@ html.dark .dp-day:hover            { background: var(--bg-muted); color: var(--t
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; }
 
-/* ─── Cacher TOUS les scrollbars — viewport ET éléments internes ───────────
-   Le sélecteur global ::-webkit-scrollbar (sans préfixe d'élément) capture
-   le scrollbar du viewport Chrome/Edge/Safari/Android que body:: manquait. */
-* { scrollbar-width: none; -ms-overflow-style: none; }   /* Firefox + IE/Edge */
-::-webkit-scrollbar { width: 0 !important; height: 0 !important; } /* Webkit/Blink */
-
-html {
-  background-color: #f1f5f9;
-}
-
 html, body {
   background-color: #f1f5f9;
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  overflow: hidden; /* Scroll uniquement dans .main-content, jamais dans le body */
 }
+
+html.dark body { background-color: var(--bg-page); }
 
 /* ===== LAYOUT GLOBAL ===== */
 .app-shell {
@@ -87,24 +79,33 @@ html, body {
 .app-body {
   display: grid;
   grid-template-columns: 224px 1fr;
-  min-height: calc(100vh - 48px); /* min-height : le contenu détermine la hauteur */
+  overflow: hidden;
+  height: calc(100vh - 48px);
 }
 
+/* ─── Main content : scroll interne avec gouttière stable ──────────────────
+   scrollbar-gutter: stable réserve TOUJOURS l'espace du scrollbar (≈15px).
+   On le colore identique au fond → invisible quelle que soit la config OS.
+   Ainsi, même avec un scrollbar classique Windows (non cachable par CSS),
+   le track est de la même couleur que le fond → zéro bande visible. ─── */
 .main-content {
+  overflow-y: auto;
   overflow-x: hidden;
   background: #f8fafc;
   padding-bottom: 80px;
-  /* Pas de overflow-y : le body gère le scroll → zéro bande noire */
+  scrollbar-gutter: stable;
+  scrollbar-color: rgba(148,163,184,0.3) #f8fafc; /* Firefox: thumb + track = fond */
 }
+/* Chrome / Safari / Edge / Android */
+.main-content::-webkit-scrollbar        { width: 6px; }
+.main-content::-webkit-scrollbar-track  { background: #f8fafc; } /* Même couleur que le fond */
+.main-content::-webkit-scrollbar-thumb  { background: rgba(148,163,184,0.35); border-radius: 3px; }
+html.dark .main-content::-webkit-scrollbar-track { background: var(--bg-page); }
+html.dark .main-content::-webkit-scrollbar-thumb { background: rgba(71,85,105,0.5); }
+html.dark .main-content { scrollbar-color: rgba(71,85,105,0.5) var(--bg-page); }
 
-/* Sidebar sticky : reste visible pendant le scroll du body */
-.sidebar-desktop {
-  position: sticky;
-  top: 48px;          /* collé juste sous la topbar */
-  height: calc(100vh - 48px);
-  align-self: start;  /* requis pour sticky dans un grid */
-  scrollbar-width: none;
-}
+/* Sidebar : scroll interne silencieux */
+.sidebar-desktop { scrollbar-width: none; }
 .sidebar-desktop::-webkit-scrollbar { display: none; }
 
 /* ===== TOPBAR ===== */
@@ -513,7 +514,14 @@ html, body {
   /* Layout : Sidebar cachée, pleine largeur */
   .app-body {
     grid-template-columns: 1fr;
+    height: calc(100vh - 48px);
   }
+  /* Mobile : pas de scrollbar visible */
+  .main-content {
+    scrollbar-gutter: auto;
+    scrollbar-width: none;
+  }
+  .main-content::-webkit-scrollbar { display: none; }
 
   /* Sidebar masquée sur mobile */
   .app-body > aside {
