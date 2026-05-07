@@ -115,10 +115,10 @@ export default function StandingsPanel({
         width: "min(600px, 100vw)",
         height: "100vh",
         background: "#fff",
-        boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
+        boxShadow: open ? "-4px 0 24px rgba(0,0,0,0.12)" : "none",
         zIndex: 101,
         transform: open ? "translateX(0)" : "translateX(100%)",
-        transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+        transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s",
         display: "flex", flexDirection: "column",
         overflowY: "auto",
       }}>
