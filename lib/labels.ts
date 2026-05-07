@@ -176,6 +176,31 @@ export const COUNTRY_NAMES: Record<string, string> = {
   "Africa":           "Afrique",
 }
 
+// ─── Mapping Highlightly ID → TheSportsDB ID ────────────────────────────────
+// Utilisé pour les pages de ligue qui récupèrent leurs données depuis TheSportsDB.
+// Les compétitions sans mapping (Conference League, UEFA Euro) seront gérées
+// directement via Highlightly en Phase 2.
+export const HIGHLIGHTLY_TO_SPORTSDB: Record<string, string> = {
+  // Compétitions internationales
+  "2486":   "4480",  // UEFA Champions League
+  "3337":   "4481",  // UEFA Europa League
+  "1635":   "4429",  // FIFA World Cup
+  "5890":   "4496",  // Africa Cup of Nations
+  "8443":   "4499",  // Copa América
+  // Ligues favorites
+  "33973":  "4328",  // Premier League (Angleterre)
+  "67162":  "4331",  // Bundesliga (Allemagne)
+  "119924": "4335",  // La Liga (Espagne)
+  "52695":  "4334",  // Ligue 1 (France)
+  "115669": "4332",  // Serie A (Italie)
+  "75672":  "4337",  // Eredivisie (Pays-Bas)
+  "80778":  "4344",  // Primeira Liga (Portugal)
+  "173537": "4339",  // Süper Lig (Turquie)
+}
+
+// IDs TheSportsDB qui sont des coupes (format groupes/phases KO) → tri spécial
+export const SPORTSDB_CUP_IDS = new Set(["4480", "4481", "4429", "4496", "4499"])
+
 /** Traduit un statut de match normalisé selon la langue. */
 export function translateStatus(status: string, lang: string): string {
   const entry = STATUS_LABELS[status]

@@ -48,6 +48,7 @@ interface MatchLive {
   homeRedCards:  number;
   awayRedCards:  number;
   goalFlash:     GoalFlash | null;
+  country?:      string; // pays récupéré depuis l'API si manquant dans le favori
 }
 
 interface MatchGroup {
@@ -419,7 +420,8 @@ export default function FavorisClient() {
           key,
           leagueName:     m.league,
           leagueLogo:     m.leagueLogo,
-          leagueCountry:  m.leagueCountry,
+          // Priorité : valeur stockée dans le favori, sinon depuis l'API (MatchLive.country)
+          leagueCountry:  m.leagueCountry ?? liveStates[m.id]?.country,
           matches:        [],
           earliestTime:   m.time ?? "00:00",
         });
@@ -497,6 +499,8 @@ export default function FavorisClient() {
             homeRedCards: prev[fav.id]?.homeRedCards ?? 0,
             awayRedCards: prev[fav.id]?.awayRedCards ?? 0,
             goalFlash,
+            // Récupère le pays depuis l'API si non stocké dans le favori
+            country: prev[fav.id]?.country ?? api.country?.name ?? undefined,
           };
         }
         return next;

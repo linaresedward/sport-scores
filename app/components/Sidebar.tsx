@@ -20,7 +20,7 @@ const INTERNATIONAL_LEAGUES = [
     logo: "https://highlightly.net/soccer/images/leagues/722432.png", darkBg: false },
   { id: "1635",   nameFr: "Coupe du Monde", nameEn: "FIFA World Cup",
     countryFr: "International", countryEn: "International",
-    logo: "https://highlightly.net/soccer/images/leagues/1635.png", darkBg: false },
+    logo: "https://r2.thesportsdb.com/images/media/league/badge/e7er5g1696521789.png", darkBg: false },
   { id: "4188",   nameFr: "UEFA Euro", nameEn: "UEFA Euro",
     countryFr: "Europe", countryEn: "Europe",
     logo: "https://highlightly.net/soccer/images/leagues/4188.png", darkBg: false },

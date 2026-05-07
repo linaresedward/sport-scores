@@ -5,9 +5,11 @@ import StandingsPanel from "../../components/StandingsPanel";
 import LeagueFavoriteButton from "../../components/LeagueFavoriteButton";
 import { RoundBlock } from "./RoundBlock";
 import type { Event } from "./RoundBlock";
+import { HIGHLIGHTLY_TO_SPORTSDB, SPORTSDB_CUP_IDS } from "../../../lib/labels";
 
 const KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY;
-const CUP_IDS = ["4480", "4481", "4482", "4483"];
+// IDs TheSportsDB qui sont des compétitions européennes (format K.O.)
+const CUP_IDS = ["4480", "4481", "4429", "4496", "4499"];
 
 const ROUND_ORDER_CUP: Record<string, number> = {
   "150": 100, "125": 90, "16": 80, "32": 70,
@@ -61,12 +63,32 @@ function groupByRound(events: Event[], leagueId?: string): { round: string; even
 }
 
 export default async function LiguePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+
+  // Convertit un ID Highlightly (sidebar) en ID TheSportsDB
+  const id = HIGHLIGHTLY_TO_SPORTSDB[rawId] ?? rawId;
+
+  // Compétitions sans mapping TheSportsDB → page provisoire (sera Phase 2)
+  if (!HIGHLIGHTLY_TO_SPORTSDB[rawId] && !rawId.match(/^\d{4}$/)) {
+    // ID Highlightly sans équivalent TheSportsDB connu
+    return (
+      <div style={{ flex: 1, padding: "28px 36px", maxWidth: "860px", textAlign: "center", paddingTop: 80 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🏆</div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+          Page en cours de développement
+        </h1>
+        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          Les pages de compétitions internationales (Conference League, UEFA Euro…) seront disponibles prochainement.
+        </p>
+      </div>
+    );
+  }
+
   const league = await getLeagueInfo(id);
   if (!league) notFound();
 
   const { past, next } = await getLeagueMatches(id, league.strCurrentSeason);
-  const isUEFA = id === "4480" || id === "4481";
+  const isUEFA = SPORTSDB_CUP_IDS.has(id);
 
   const pastGroups = groupByRound(past, id);
   const nextGroups = groupByRound(next, id);
@@ -95,8 +117,10 @@ export default async function LiguePage({ params }: { params: Promise<{ id: stri
             {league.strCountry} · {league.strCurrentSeason}
           </p>
         </div>
-        <LeagueFavoriteButton id={id} name={league.strLeague} logo={league.strBadge ?? ""} />
-        <StandingsPanel leagueId={id} leagueName={league.strLeague} />
+        {/* LeagueFavoriteButton utilise l'ID Highlightly pour la sidebar */}
+        <LeagueFavoriteButton id={rawId} name={league.strLeague} logo={league.strBadge ?? ""} />
+        {/* StandingsPanel utilise l'ID Highlightly pour notre API /api/standings */}
+        <StandingsPanel leagueId={rawId} leagueName={league.strLeague} />
       </div>
 
       {next.length > 0 && (
