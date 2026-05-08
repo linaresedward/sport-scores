@@ -14,6 +14,9 @@ const KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY;
 const CUP_IDS = ["4480", "4481", "4429", "4496", "4499"];
 
 const ROUND_ORDER_CUP: Record<string, number> = {
+  "200": 120, // Finale
+  "0":   115, // Finale (variante)
+  "160": 108, // Match pour la 3e place
   "150": 100, "125": 90, "16": 80, "32": 70,
   "8": 60, "7": 59, "6": 58, "5": 57,
   "4": 56, "3": 55, "2": 54, "1": 53, "400": 10,

@@ -93,6 +93,7 @@ function getRoundLabel(round: string | null, leagueId: string | undefined, t: (k
   const isCup = leagueId ? CUP_IDS.includes(leagueId) : false;
   if (isCup) {
     if (round === "200" || round === "0") return "Finale";
+    if (round === "160") return t("third_place" as any);
     if (round === "150") return t("semifinal");
     if (round === "125") return t("quarterfinal");
     if (round === "32")  return t("playoff");
