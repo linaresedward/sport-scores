@@ -14,7 +14,8 @@ const LEAGUE_MAP: Record<string, string> = {
 
 // Saisons TheSportsDB spéciales (quand la saison active n'est pas "2025-2026")
 const SPECIAL_SEASONS: Record<string, string> = {
-  "5890": "2023",   // CAN 2024 (Ivory Coast) = saison "2023" dans TheSportsDB
+  "5890": "2025",   // CAN 2025 (Maroc, terminée jan 2026) = saison "2025" dans TheSportsDB
+  "8443": "2024",   // Copa América 2024 (USA) = saison "2024"
 }
 
 const SPORTSDB_KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY ?? "139695"
@@ -23,6 +24,17 @@ const SPORTSDB_KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY ?? "139695"
 const formCache = new Map<string, { data: Record<string, string>; ts: number }>()
 
 interface TeamData { form: string; description: string }
+
+// Normalise les caractères spéciaux pour la comparaison (turc, accent, etc.)
+function norm(s: string): string {
+  return s.toLowerCase()
+    .replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g')
+    .replace(/[üÜ]/g, 'u').replace(/[öÖ]/g, 'o').replace(/[ıİ]/g, 'i')
+    .replace(/[àáâãäå]/g, 'a').replace(/[èéêë]/g, 'e').replace(/[ìíîï]/g, 'i')
+    .replace(/[òóôõö]/g, 'o').replace(/[ùúûü]/g, 'u').replace(/[ñ]/g, 'n')
+    .replace(/[ý]/g, 'y').replace(/[ß]/g, 'ss')
+    .replace(/[^\w\s]/g, '').trim()
+}
 
 async function getFormMap(highlightlyId: string): Promise<Record<string, TeamData>> {
   const sportsdbId = LEAGUE_MAP[highlightlyId]
@@ -55,22 +67,29 @@ async function getFormMap(highlightlyId: string): Promise<Record<string, TeamDat
 }
 
 function matchTeam(formMap: Record<string, TeamData>, teamName: string): TeamData {
-  const lower = teamName.toLowerCase()
+  const lower = norm(teamName)
 
-  // 1. Correspondance exacte
+  // 1. Correspondance exacte (normalisée)
   if (formMap[lower]) return formMap[lower]
-
-  // 2. L'un contient l'autre ("SC Freiburg" ↔ "Freiburg")
+  // Vérifier aussi les clés normalisées
   for (const [key, val] of Object.entries(formMap)) {
-    if (key.includes(lower) || lower.includes(key)) return val
+    if (norm(key) === lower) return val
   }
 
-  // 3. Meilleur chevauchement de mots (> 3 lettres) — gère "Paris SG" ↔ "Paris Saint Germain"
+  // 2. L'un contient l'autre (normalisé) — "SC Freiburg" ↔ "Freiburg"
+  for (const [key, val] of Object.entries(formMap)) {
+    const nk = norm(key)
+    if (nk.includes(lower) || lower.includes(nk)) return val
+  }
+
+  // 3. Meilleur chevauchement de mots (> 3 lettres) — "Paris SG" ↔ "Paris Saint Germain"
   const teamWords = new Set(lower.split(/\W+/).filter(w => w.length > 3))
+  if (teamWords.size === 0) return { form: "", description: "" }
+
   let bestKey: string | null = null
   let bestScore = 0
   for (const [key] of Object.entries(formMap)) {
-    const keyWords = key.split(/\W+/).filter(w => w.length > 3)
+    const keyWords = norm(key).split(/\W+/).filter(w => w.length > 3)
     const overlap  = keyWords.filter(w => teamWords.has(w)).length
     if (overlap > bestScore) { bestScore = overlap; bestKey = key }
   }

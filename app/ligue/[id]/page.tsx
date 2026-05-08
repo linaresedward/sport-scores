@@ -90,7 +90,14 @@ export default async function LiguePage({ params }: { params: Promise<{ id: stri
   const league = await getLeagueInfo(id);
   if (!league) notFound();
 
-  const { past, next } = await getLeagueMatches(id, league.strCurrentSeason);
+  // Certaines compétitions nécessitent une saison fixe (CAN, Copa América)
+  const FIXED_SEASONS: Record<string, string> = {
+    "4496": "2025",  // CAN 2025 (Maroc, terminée jan 2026)
+    "4499": "2024",  // Copa América 2024 (USA)
+  }
+  const season = FIXED_SEASONS[id] ?? league.strCurrentSeason
+
+  const { past, next } = await getLeagueMatches(id, season);
   const isUEFA = SPORTSDB_CUP_IDS.has(id);
 
   const pastGroups = groupByRound(past, id);
