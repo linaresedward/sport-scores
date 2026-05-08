@@ -10,7 +10,7 @@ import { useT } from "@/lib/i18n";
 
 const SPORTS = [
   { label: "Football",   icon: "⚽", href: "/" },
-  { label: "Tennis",     icon: "🎾", href: "/tennis" },
+  { label: "Hockey",     icon: "🏒", href: "/hockey" },
   { label: "Basketball", icon: "🏀", href: "/basketball" },
 ];
 
@@ -19,7 +19,7 @@ export default function Topbar() {
   const { t } = useT();
 
   const activeSport =
-    pathname.startsWith("/tennis")     ? "/tennis" :
+    pathname.startsWith("/hockey")     ? "/hockey" :
     pathname.startsWith("/basketball") ? "/basketball" :
     "/";
 

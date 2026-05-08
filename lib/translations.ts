@@ -1,6 +1,7 @@
 export const translations = {
   fr: {
     football:            "Football",
+    hockey:              "Hockey",
     tennis:              "Tennis",
     basketball:          "Basketball",
     favorites:           "Favoris",
@@ -131,6 +132,7 @@ export const translations = {
   },
   en: {
     football:            "Football",
+    hockey:              "Ice Hockey",
     tennis:              "Tennis",
     basketball:          "Basketball",
     favorites:           "Favorites",

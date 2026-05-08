@@ -23,6 +23,7 @@ type Standing = {
   idTeam?: string
 };
 
+// Zones pour les championnats (depuis description TheSportsDB)
 function getZoneColor(description: string): string | null {
   const d = (description ?? "").toLowerCase();
   if (d.includes("champions league") && !d.includes("qualification")) return "#1E40AF";
@@ -34,6 +35,16 @@ function getZoneColor(description: string): string | null {
   if (d.includes("relegation playoff")) return "#C2410C";
   if (d.includes("relegation")) return "#991B1B";
   return null;
+}
+
+// Zones pour les compétitions UEFA en phase de ligue (position 1-36)
+const UEFA_LEAGUE_PHASE_IDS = new Set(["2486", "3337", "722432"]);
+
+function getUEFAZone(leagueId: string, rank: number): { color: string; label: string } | null {
+  if (!UEFA_LEAGUE_PHASE_IDS.has(leagueId)) return null;
+  if (rank <= 8)  return { color: "#16a34a", label: "Qualifié — 8es de finale" };
+  if (rank <= 24) return { color: "#2563eb", label: "Barrages — 8es de finale" };
+  return { color: "#94a3b8", label: "Éliminé" };
 }
 
 function FormDot({ result }: { result: string }) {
@@ -170,92 +181,85 @@ export default function StandingsPanel({
             </div>
 
             {standings.map((row, idx) => {
-              const rank      = parseInt(row.intRank ?? "0");
-              const zoneColor = getZoneColor(row.strDescription ?? "");
-              const prevColor = idx > 0 ? getZoneColor(standings[idx - 1].strDescription ?? "") : null;
-              const zoneChanged = zoneColor !== prevColor && idx > 0 && zoneColor;
-              const diff      = parseInt(row.intGoalDifference ?? "0");
-              const gf        = row.intGoalsFor ?? row.total?.scoredGoals ?? "?";
-              const ga        = row.intGoalsAgainst ?? row.total?.receivedGoals ?? "?";
-              const draws     = row.intDraw ?? row.total?.draws ?? "?";
-              const form      = (row.strForm ?? "").split("").slice(0, 5);
-              const key       = row.idTeam ?? String(idx);
+              // ── Normalisation : TheSportsDB OU Highlightly ──────────────────
+              const rank    = parseInt(row.intRank ?? String(row.position ?? idx + 1));
+              const name    = row.strTeam  ?? row.team?.name  ?? "";
+              const badge   = row.strBadge
+                ? row.strBadge.replace("/tiny", "")
+                : row.team?.logo
+                  ? `/api/logo?url=${encodeURIComponent(row.team.logo)}`
+                  : null;
+              const played  = row.intPlayed ?? String(row.total?.games ?? "");
+              const won     = row.intWin    ?? String(row.total?.wins  ?? "");
+              const draws   = row.intDraw   ?? String(row.total?.draws ?? "");
+              const lost    = row.intLoss   ?? String(row.total?.loses ?? "");
+              const gf      = row.intGoalsFor      ?? row.total?.scoredGoals   ?? "?";
+              const ga      = row.intGoalsAgainst  ?? row.total?.receivedGoals ?? "?";
+              const gdRaw   = row.intGoalDifference
+                ? parseInt(row.intGoalDifference)
+                : (row.total ? row.total.scoredGoals - row.total.receivedGoals : 0);
+              const pts     = row.intPoints ?? String(row.points ?? "");
+              const form    = (row.strForm ?? "").split("").slice(0, 5);
+              const key     = row.idTeam ?? String(idx);
+
+              // ── Zone couleur : TheSportsDB (description) ou UEFA position ──
+              const zoneFromDesc  = getZoneColor(row.strDescription ?? "");
+              const zoneFromUEFA  = getUEFAZone(leagueId, rank);
+              const zoneColor     = zoneFromDesc ?? zoneFromUEFA?.color ?? null;
+
+              // ── Séparateur de zone ──────────────────────────────────────────
+              const prevRank  = standings[idx - 1] ? (parseInt((standings[idx - 1] as any).intRank ?? String((standings[idx - 1] as any).position ?? idx))) : null;
+              const prevZoneDesc = idx > 0 ? getZoneColor(standings[idx - 1].strDescription ?? "") : null;
+              const prevZoneUEFA = idx > 0 ? getUEFAZone(leagueId, prevRank ?? 0) : null;
+              const prevZone = prevZoneDesc ?? prevZoneUEFA?.color ?? null;
+              const showSeparator = idx > 0 && zoneColor !== prevZone;
+              const separatorLabel = zoneFromUEFA?.label ?? row.strDescription;
 
               return (
                 <div key={key}>
-                  {zoneChanged && (
+                  {showSeparator && separatorLabel && (
                     <div style={{
-                      padding: "3px 16px",
-                      fontSize: "10px", fontWeight: 700,
-                      color: zoneColor!, background: zoneColor + "15",
+                      padding: "3px 16px", fontSize: "10px", fontWeight: 700,
+                      color: zoneColor!, background: zoneColor + "18",
                       letterSpacing: "0.06em", textTransform: "uppercase",
+                      borderTop: `2px solid ${zoneColor}40`,
                     }}>
-                      {row.strDescription}
+                      {separatorLabel}
                     </div>
                   )}
 
                   <div style={{
                     display: "grid", gridTemplateColumns: COLS,
-                    padding: "7px 16px",
-                    alignItems: "center",
-                    borderBottom: "1px solid #f8fafc",
-                    background: "#fff",
+                    padding: "7px 16px", alignItems: "center",
+                    borderBottom: "1px solid #f8fafc", background: "#fff",
                   }}>
-                    {/* Rang */}
+                    {/* Rang avec barre couleur zone */}
                     <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-                      <div style={{
-                        width: "3px", height: "18px", borderRadius: "2px",
-                        background: zoneColor || "transparent", flexShrink: 0,
-                      }} />
-                      <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>
-                        {rank}
-                      </span>
+                      <div style={{ width: "3px", height: "18px", borderRadius: "2px", background: zoneColor || "transparent", flexShrink: 0 }} />
+                      <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>{rank}</span>
                     </div>
 
                     {/* Équipe */}
                     <div style={{ display: "flex", alignItems: "center", gap: "7px", overflow: "hidden" }}>
-                      {row.strBadge ? (
-                        <img
-                          src={row.strBadge.replace("/tiny", "")}
-                          alt={row.strTeam}
-                          width={16} height={16}
-                          style={{ objectFit: "contain", flexShrink: 0 }}
-                        />
+                      {badge ? (
+                        <img src={badge} alt={name} width={16} height={16} style={{ objectFit: "contain", flexShrink: 0 }} />
                       ) : (
                         <div style={{ width: 16, height: 16, background: "#f1f5f9", borderRadius: "50%", flexShrink: 0 }} />
                       )}
-                      <span style={{
-                        fontSize: "11px", fontWeight: 500, color: "#1e293b",
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      }}>
-                        {row.strTeam}
+                      <span style={{ fontSize: "11px", fontWeight: 500, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {name}
                       </span>
                     </div>
 
-                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{row.intPlayed}</span>
-                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{row.intWin}</span>
-                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{String(draws)}</span>
-                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{row.intLoss}</span>
-
-                    {/* Buts */}
-                    <span style={{ textAlign: "center", fontSize: "10px", color: "#64748b" }}>
-                      {gf}:{ga}
+                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{played}</span>
+                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{won}</span>
+                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{draws}</span>
+                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{lost}</span>
+                    <span style={{ textAlign: "center", fontSize: "10px", color: "#64748b" }}>{gf}:{ga}</span>
+                    <span style={{ textAlign: "center", fontSize: "11px", fontWeight: 600, color: gdRaw > 0 ? "#166534" : gdRaw < 0 ? "#991b1b" : "#64748b" }}>
+                      {gdRaw > 0 ? `+${gdRaw}` : gdRaw}
                     </span>
-
-                    {/* +/- */}
-                    <span style={{
-                      textAlign: "center", fontSize: "11px", fontWeight: 600,
-                      color: diff > 0 ? "#166534" : diff < 0 ? "#991b1b" : "#64748b",
-                    }}>
-                      {diff > 0 ? `+${diff}` : diff}
-                    </span>
-
-                    {/* Pts */}
-                    <span style={{ textAlign: "center", fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>
-                      {row.intPoints}
-                    </span>
-
-                    {/* Forme */}
+                    <span style={{ textAlign: "center", fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{pts}</span>
                     <div style={{ display: "flex", gap: "2px", justifyContent: "center" }}>
                       {form.length > 0
                         ? form.map((r, i) => <FormDot key={i} result={r} />)

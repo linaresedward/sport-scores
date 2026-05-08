@@ -29,7 +29,7 @@ const PRIORITY_IDS = new Set(PRIORITY_LEAGUES.map(l => l.id))
 
 const SPORTS = [
   { key: "football",   icon: "⚽", href: "/" },
-  { key: "tennis",     icon: "🎾", href: "/tennis" },
+  { key: "hockey",     icon: "🏒", href: "/hockey" },
   { key: "basketball", icon: "🏀", href: "/basketball" },
 ]
 
