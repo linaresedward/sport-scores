@@ -90,7 +90,7 @@ function StandingsInline({ leagueId }: { leagueId: string }) {
     <div style={{background:"var(--bg-surface)",borderRadius:12,border:"1px solid var(--border)",overflow:"hidden"}}>
       {/* En-tête */}
       <div style={{
-        display:"grid", gridTemplateColumns:"32px 1fr 32px 32px 32px 40px 40px",
+        display:"grid", gridTemplateColumns:"32px 1fr 32px 32px 32px 40px 40px 76px",
         padding:"8px 16px", background:"var(--bg-muted)", borderBottom:"1px solid var(--border)",
         fontSize:11, fontWeight:700, color:"var(--text-muted)",
         letterSpacing:".05em", textTransform:"uppercase",
@@ -102,36 +102,63 @@ function StandingsInline({ leagueId }: { leagueId: string }) {
         <span style={{textAlign:"center"}}>P</span>
         <span style={{textAlign:"center"}}>+/-</span>
         <span style={{textAlign:"center"}}>Pts</span>
+        <span style={{textAlign:"center"}}>Forme</span>
       </div>
       {/* Lignes */}
       {standings.map((row: any) => {
-        const diff = (row.total.scoredGoals ?? 0) - (row.total.receivedGoals ?? 0)
+        const rank  = parseInt(row.intRank ?? String(row.position ?? 0))
+        const name  = row.strTeam ?? row.team?.name ?? ""
+        const badge = row.strBadge ?? (row.team?.logo ? `/api/logo?url=${encodeURIComponent(row.team.logo)}` : null)
+        const played = row.intPlayed ?? String(row.total?.games ?? "")
+        const won    = row.intWin   ?? String(row.total?.wins ?? "")
+        const lost   = row.intLoss  ?? String(row.total?.loses ?? "")
+        const gd     = row.intGoalDifference
+          ? parseInt(row.intGoalDifference)
+          : (row.total ? row.total.scoredGoals - row.total.receivedGoals : 0)
+        const pts   = row.intPoints ?? String(row.points ?? "")
+        const form  = (row.strForm ?? "").split("").slice(0, 5)
         return (
-          <div key={row.team.id} style={{
-            display:"grid", gridTemplateColumns:"32px 1fr 32px 32px 32px 40px 40px",
+          <div key={row.team?.id ?? rank} style={{
+            display:"grid", gridTemplateColumns:"32px 1fr 32px 32px 32px 40px 40px 76px",
             padding:"8px 16px", alignItems:"center", borderBottom:"1px solid var(--border)",
           }}>
-            <span style={{fontSize:12,color:"var(--text-muted)",fontWeight:600}}>{row.position}</span>
+            <span style={{fontSize:12,color:"var(--text-muted)",fontWeight:600}}>{rank}</span>
             <div style={{display:"flex",alignItems:"center",gap:6,overflow:"hidden"}}>
-              {row.team.logo && (
-                <img src={`/api/logo?url=${encodeURIComponent(row.team.logo)}`}
-                  width={16} height={16} style={{objectFit:"contain",flexShrink:0}} alt=""/>
+              {badge && (
+                <img src={badge} width={16} height={16} style={{objectFit:"contain",flexShrink:0}} alt=""/>
               )}
               <span style={{
                 fontSize:12,fontWeight:500,color:"var(--text-primary)",
                 whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-              }}>{row.team.name}</span>
+              }}>{name}</span>
             </div>
-            <span style={{textAlign:"center",fontSize:12,color:"var(--text-secondary)"}}>{row.total.games}</span>
-            <span style={{textAlign:"center",fontSize:12,color:"var(--text-secondary)"}}>{row.total.wins}</span>
-            <span style={{textAlign:"center",fontSize:12,color:"var(--text-secondary)"}}>{row.total.loses}</span>
+            <span style={{textAlign:"center",fontSize:12,color:"var(--text-secondary)"}}>{played}</span>
+            <span style={{textAlign:"center",fontSize:12,color:"var(--text-secondary)"}}>{won}</span>
+            <span style={{textAlign:"center",fontSize:12,color:"var(--text-secondary)"}}>{lost}</span>
             <span style={{
               textAlign:"center",fontSize:12,fontWeight:600,
-              color:diff>0?"#166534":diff<0?"#991b1b":"var(--text-muted)",
+              color:gd>0?"#166534":gd<0?"#991b1b":"var(--text-muted)",
             }}>
-              {diff>0?`+${diff}`:diff}
+              {gd>0?`+${gd}`:gd}
             </span>
-            <span style={{textAlign:"center",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{row.points}</span>
+            <span style={{textAlign:"center",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{pts}</span>
+            {/* Forme */}
+            <div style={{display:"flex",gap:2,justifyContent:"center"}}>
+              {form.length > 0
+                ? form.map((r:string, i:number) => {
+                    const color = r==="W"?"#16a34a":r==="L"?"#dc2626":"#f59e0b"
+                    const lbl   = r==="W"?"V":r==="L"?"D":"N"
+                    return (
+                      <div key={i} style={{
+                        width:14,height:14,borderRadius:"50%",background:color,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:7,fontWeight:700,color:"#fff",flexShrink:0,
+                      }}>{lbl}</div>
+                    )
+                  })
+                : <span style={{fontSize:10,color:"var(--text-muted)"}}>—</span>
+              }
+            </div>
           </div>
         )
       })}

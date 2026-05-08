@@ -65,6 +65,11 @@ function FormDot({ result }: { result: string }) {
 // Colonnes : # | Équipe | MJ | V | N | D | Buts | +/- | Pts | Forme
 const COLS = "24px 1fr 28px 26px 26px 26px 42px 34px 32px 88px";
 
+// Statuts Highlightly indiquant qu'un match est en cours
+const LIVE_DESCS = new Set(["First half", "Second half", "Half time", "Extra time", "Penalties"])
+
+interface LiveInfo { score: string; opponent: string; isHome: boolean; clock: number | null }
+
 export default function StandingsPanel({
   leagueId,
   leagueName,
@@ -75,17 +80,34 @@ export default function StandingsPanel({
   const [open, setOpen]           = useState(false);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [loading, setLoading]     = useState(false);
+  // Map Highlightly teamId → info match live
+  const [liveMap, setLiveMap]     = useState<Map<number, LiveInfo>>(new Map());
 
   useEffect(() => {
     if (!open || standings.length > 0) return;
     setLoading(true);
-    fetch(`/api/standings?leagueId=${leagueId}`)
-      .then(r => r.json())
-      .then(d => {
-        setStandings(d.groups?.[0]?.standings ?? []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+
+    const today = new Date().toISOString().split("T")[0];
+
+    Promise.all([
+      fetch(`/api/standings?leagueId=${leagueId}`).then(r => r.json()),
+      fetch(`/api/matches?date=${today}`).then(r => r.json()),
+    ]).then(([standData, matchData]) => {
+      setStandings(standData.groups?.[0]?.standings ?? []);
+
+      // Construire la map des matchs live pour ce championnat
+      const leagueMatches: any[] = matchData[leagueId] ?? [];
+      const map = new Map<number, LiveInfo>();
+      leagueMatches.forEach((m: any) => {
+        if (!LIVE_DESCS.has(m.state?.description ?? "")) return;
+        const score = m.state?.score?.current ?? "";
+        const clock = m.state?.clock ?? null;
+        map.set(m.homeTeam.id, { score, opponent: m.awayTeam.name, isHome: true, clock });
+        map.set(m.awayTeam.id, { score, opponent: m.homeTeam.name, isHome: false, clock });
+      });
+      setLiveMap(map);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [open, leagueId, standings.length]);
 
   return (
@@ -141,7 +163,20 @@ export default function StandingsPanel({
           position: "sticky", top: 0, background: "#fff", zIndex: 1,
         }}>
           <div>
-            <div style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>Classement</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>Classement</span>
+              {liveMap.size > 0 && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                  padding: "2px 8px", borderRadius: 999,
+                  background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
+                  fontSize: 10, fontWeight: 700, color: "#ef4444",
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", animation: "livePulse 1.4s ease-in-out infinite" }} />
+                  LIVE
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
               {leagueName} · 2025-2026
             </div>
@@ -181,6 +216,10 @@ export default function StandingsPanel({
             </div>
 
             {standings.map((row, idx) => {
+              // ── Info match live pour cette équipe ───────────────────────────
+              const teamHLId = row.team?.id  // ID Highlightly (si données HL)
+              const live     = teamHLId ? liveMap.get(teamHLId) : undefined
+
               // ── Normalisation : TheSportsDB OU Highlightly ──────────────────
               const rank    = parseInt(row.intRank ?? String(row.position ?? idx + 1));
               const name    = row.strTeam  ?? row.team?.name  ?? "";
@@ -231,7 +270,9 @@ export default function StandingsPanel({
                   <div style={{
                     display: "grid", gridTemplateColumns: COLS,
                     padding: "7px 16px", alignItems: "center",
-                    borderBottom: "1px solid #f8fafc", background: "#fff",
+                    borderBottom: "1px solid #f8fafc",
+                    background: live ? "rgba(239,68,68,0.04)" : "#fff",
+                    borderLeft: live ? "3px solid #ef4444" : "3px solid transparent",
                   }}>
                     {/* Rang avec barre couleur zone */}
                     <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
@@ -246,9 +287,21 @@ export default function StandingsPanel({
                       ) : (
                         <div style={{ width: 16, height: 16, background: "#f1f5f9", borderRadius: "50%", flexShrink: 0 }} />
                       )}
-                      <span style={{ fontSize: "11px", fontWeight: 500, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <span style={{ fontSize: "11px", fontWeight: live ? 700 : 500, color: live ? "#ef4444" : "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {name}
                       </span>
+                      {/* Score live inline — affiché depuis la perspective de l'équipe */}
+                      {live?.score && (
+                        <span style={{
+                          flexShrink: 0, fontSize: 9, fontWeight: 800, color: "#fff",
+                          background: "#ef4444", padding: "1px 5px", borderRadius: 4,
+                          whiteSpace: "nowrap", letterSpacing: ".03em",
+                        }}>
+                          {live.isHome
+                            ? live.score
+                            : live.score.split(" - ").reverse().join(" - ")}
+                        </span>
+                      )}
                     </div>
 
                     <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{played}</span>
