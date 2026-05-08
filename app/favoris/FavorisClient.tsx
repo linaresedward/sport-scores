@@ -441,71 +441,98 @@ export default function FavorisClient() {
       const grouped: Record<string, any[]> = await res.json();
       const allApi = Object.values(grouped).flat();
 
-      setLiveStates((prev) => {
+      // ── 1. Collecter les changements et les événements (SANS side effects) ──
+      type SoundEvent = {
+        favId:   string; homeTeam: string; awayTeam: string;
+        type:    "goal" | "cancelled" | "halftime" | "fulltime";
+        team:    "home" | "away" | "";
+        score:   string | null;
+        scoring: string;
+      };
+
+      const soundEvents: SoundEvent[] = [];
+      const newStates: Record<string, MatchLive> = {};
+
+      for (const fav of todayMatches) {
+        const api = allApi.find((m: any) => String(m.id) === fav.id);
+        if (!api) continue;
+
+        const status = normalizeStatus(api.state?.description ?? "");
+        const score  = api.state?.score?.current ?? null;
+        const clock  = api.state?.clock ?? null;
+        const pr     = prevRef.current[fav.id];
+
+        let goalFlash: GoalFlash | null = null;
+
+        if (pr && pr.score !== null && score !== null && pr.score !== score) {
+          const [ph, pa] = pr.score.split(" - ").map(Number);
+          const [nh, na] = score.split(" - ").map(Number);
+          const team: "home" | "away" = nh > ph ? "home" : na > pa ? "away" : nh < ph ? "home" : "away";
+
+          if (nh > ph || na > pa) {
+            goalFlash = { team, phase: "pending" };
+            soundEvents.push({ favId: fav.id, homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, type: "goal", team, score, scoring: team === "home" ? fav.homeTeam : fav.awayTeam });
+          } else if (nh < ph || na < pa) {
+            goalFlash = { team, phase: "cancelled" };
+            soundEvents.push({ favId: fav.id, homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, type: "cancelled", team, score, scoring: team === "home" ? fav.homeTeam : fav.awayTeam });
+          }
+        }
+
+        if (pr && pr.status !== "HT" && status === "HT")
+          soundEvents.push({ favId: fav.id, homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, type: "halftime", team: "", score, scoring: "" });
+        if (pr && pr.status !== "Match Finished" && status === "Match Finished")
+          soundEvents.push({ favId: fav.id, homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, type: "fulltime", team: "", score, scoring: "" });
+
+        prevRef.current[fav.id] = { score, status };
+
+        newStates[fav.id] = {
+          score, status, clock,
+          homeRedCards: 0,
+          awayRedCards: 0,
+          goalFlash,
+          country: api.country?.name ?? undefined,
+        };
+      }
+
+      // ── 2. Appliquer le nouvel état (pur, sans side effects) ──────────────
+      setLiveStates(prev => {
         const next = { ...prev };
-
-        for (const fav of todayMatches) {
-          const api = allApi.find((m: any) => String(m.id) === fav.id);
-          if (!api) continue;
-
-          const status = normalizeStatus(api.state?.description ?? "");
-          const score  = api.state?.score?.current ?? null;
-          const clock  = api.state?.clock ?? null;
-          const pr     = prevRef.current[fav.id];
-
-          let goalFlash = prev[fav.id]?.goalFlash ?? null;
-
-          if (pr && pr.score !== null && score !== null && pr.score !== score) {
-            const [ph, pa] = pr.score.split(" - ").map(Number);
-            const [nh, na] = score.split(" - ").map(Number);
-            const id = fav.id;
-
-            const team = nh > ph ? "home" : na > pa ? "away" : nh < ph ? "home" : "away";
-            const isGoal = nh > ph || na > pa;
-            const isCancelled = nh < ph || na < pa;
-
-            if (isGoal) {
-              // Point clignotant 4s → BUT confirmé + son + toast
-              goalFlash = { team, phase: "pending" };
-              setTimeout(() => {
-                setLiveStates(s => s[id] ? { ...s, [id]: { ...s[id], goalFlash: { team, phase: "confirmed" } } } : s);
-                playSound("goal");
-                addToast({ type: "goal", homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, scoringTeam: team === "home" ? fav.homeTeam : fav.awayTeam, score });
-                setTimeout(() => setLiveStates(s => ({ ...s, [id]: { ...s[id], goalFlash: null } })), 20000);
-              }, 4000);
-            } else if (isCancelled) {
-              // But annulé : immédiat + son + toast
-              goalFlash = { team, phase: "cancelled" };
-              playSound("cancelled");
-              addToast({ type: "cancelled", homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, scoringTeam: team === "home" ? fav.homeTeam : fav.awayTeam, score });
-              setTimeout(() => setLiveStates(s => ({ ...s, [id]: { ...s[id], goalFlash: null } })), 20000);
-            }
-          }
-
-          if (pr && pr.status !== "HT" && status === "HT") {
-            playSound("halftime");
-            addToast({ type: "halftime", homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, score });
-          }
-          if (pr && pr.status !== "Match Finished" && status === "Match Finished") {
-            playSound("fulltime");
-            addToast({ type: "fulltime", homeTeam: fav.homeTeam, awayTeam: fav.awayTeam, score });
-          }
-
-          prevRef.current[fav.id] = { score, status };
-
-          next[fav.id] = {
-            score,
-            status,
-            clock,
-            homeRedCards: prev[fav.id]?.homeRedCards ?? 0,
-            awayRedCards: prev[fav.id]?.awayRedCards ?? 0,
-            goalFlash,
-            // Récupère le pays depuis l'API si non stocké dans le favori
-            country: prev[fav.id]?.country ?? api.country?.name ?? undefined,
+        for (const [id, ns] of Object.entries(newStates)) {
+          next[id] = {
+            ...ns,
+            homeRedCards: prev[id]?.homeRedCards ?? 0,
+            awayRedCards: prev[id]?.awayRedCards ?? 0,
+            country:      ns.country ?? prev[id]?.country,
           };
         }
         return next;
       });
+
+      // ── 3. Déclencher sons + toasts HORS du setState (side effects propres) ──
+      for (const ev of soundEvents) {
+        if (ev.type === "goal") {
+          // 4s de point clignotant (déjà dans l'état), puis son + toast + confirmation
+          const id = ev.favId;
+          const team = ev.team as "home" | "away";
+          setTimeout(() => {
+            setLiveStates(s => s[id] ? { ...s, [id]: { ...s[id], goalFlash: { team, phase: "confirmed" } } } : s);
+            playSound("goal");
+            addToast({ type: "goal", homeTeam: ev.homeTeam, awayTeam: ev.awayTeam, scoringTeam: ev.scoring, score: ev.score });
+            setTimeout(() => setLiveStates(s => s[id] ? { ...s, [id]: { ...s[id], goalFlash: null } } : s), 20000);
+          }, 4000);
+        } else if (ev.type === "cancelled") {
+          playSound("cancelled");
+          addToast({ type: "cancelled", homeTeam: ev.homeTeam, awayTeam: ev.awayTeam, scoringTeam: ev.scoring, score: ev.score });
+          const id = ev.favId;
+          setTimeout(() => setLiveStates(s => s[id] ? { ...s, [id]: { ...s[id], goalFlash: null } } : s), 20000);
+        } else if (ev.type === "halftime") {
+          playSound("halftime");
+          addToast({ type: "halftime", homeTeam: ev.homeTeam, awayTeam: ev.awayTeam, score: ev.score });
+        } else if (ev.type === "fulltime") {
+          playSound("fulltime");
+          addToast({ type: "fulltime", homeTeam: ev.homeTeam, awayTeam: ev.awayTeam, score: ev.score });
+        }
+      }
 
       // Cartons rouges : fetch match detail pour les matchs live
       for (const fav of todayMatches) {
