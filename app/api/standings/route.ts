@@ -25,6 +25,23 @@ const formCache = new Map<string, { data: Record<string, string>; ts: number }>(
 
 interface TeamData { form: string; description: string }
 
+// Abréviations courantes → nom complet TheSportsDB
+const TEAM_ALIASES: Record<string, string> = {
+  "wolves":        "wolverhampton wanderers",
+  "spurs":         "tottenham hotspur",
+  "man utd":       "manchester united",
+  "man city":      "manchester city",
+  "man united":    "manchester united",
+  "west ham":      "west ham united",
+  "psg":           "paris saint germain",
+  "paris sg":      "paris saint germain",
+  "atletico":      "atletico madrid",
+  "inter":         "inter milan",
+  "bvb":           "borussia dortmund",
+  "rb leipzig":    "rasenballsport leipzig",
+  "stade brestois":"stade brestois 29",
+}
+
 // Normalise les caractères spéciaux pour la comparaison (turc, accent, etc.)
 function norm(s: string): string {
   return s.toLowerCase()
@@ -67,7 +84,9 @@ async function getFormMap(highlightlyId: string): Promise<Record<string, TeamDat
 }
 
 function matchTeam(formMap: Record<string, TeamData>, teamName: string): TeamData {
-  const lower = norm(teamName)
+  // 0. Alias (Wolves → Wolverhampton Wanderers, Paris SG → Paris Saint Germain…)
+  const aliased = TEAM_ALIASES[norm(teamName)] ?? norm(teamName)
+  const lower = aliased
 
   // 1. Correspondance exacte (normalisée)
   if (formMap[lower]) return formMap[lower]

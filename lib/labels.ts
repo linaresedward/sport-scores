@@ -184,7 +184,8 @@ export const HIGHLIGHTLY_TO_SPORTSDB: Record<string, string> = {
   // Compétitions internationales
   "2486":   "4480",  // UEFA Champions League
   "3337":   "4481",  // UEFA Europa League
-  "722432": "4482",  // UEFA Conference League (TheSportsDB 4482 a les bons matchs 2025-26)
+  // "722432" → Conference League : pas de données TheSportsDB propres (4482 = FA Cup)
+  // → géré par HighlightlyLeaguePage
   "1635":   "4429",  // FIFA World Cup
   "5890":   "4496",  // Africa Cup of Nations
   "8443":   "4499",  // Copa América
@@ -200,7 +201,7 @@ export const HIGHLIGHTLY_TO_SPORTSDB: Record<string, string> = {
 }
 
 // IDs TheSportsDB qui sont des coupes (format groupes/phases KO) → tri spécial
-export const SPORTSDB_CUP_IDS = new Set(["4480", "4481", "4482", "4429", "4496", "4499"])
+export const SPORTSDB_CUP_IDS = new Set(["4480", "4481", "4429", "4496", "4499"])
 
 /** Traduit un statut de match normalisé selon la langue. */
 export function translateStatus(status: string, lang: string): string {
