@@ -56,10 +56,26 @@ async function getFormMap(highlightlyId: string): Promise<Record<string, TeamDat
 
 function matchTeam(formMap: Record<string, TeamData>, teamName: string): TeamData {
   const lower = teamName.toLowerCase()
+
+  // 1. Correspondance exacte
   if (formMap[lower]) return formMap[lower]
+
+  // 2. L'un contient l'autre ("SC Freiburg" ↔ "Freiburg")
   for (const [key, val] of Object.entries(formMap)) {
     if (key.includes(lower) || lower.includes(key)) return val
   }
+
+  // 3. Meilleur chevauchement de mots (> 3 lettres) — gère "Paris SG" ↔ "Paris Saint Germain"
+  const teamWords = new Set(lower.split(/\W+/).filter(w => w.length > 3))
+  let bestKey: string | null = null
+  let bestScore = 0
+  for (const [key] of Object.entries(formMap)) {
+    const keyWords = key.split(/\W+/).filter(w => w.length > 3)
+    const overlap  = keyWords.filter(w => teamWords.has(w)).length
+    if (overlap > bestScore) { bestScore = overlap; bestKey = key }
+  }
+  if (bestScore > 0 && bestKey) return formMap[bestKey]
+
   return { form: "", description: "" }
 }
 

@@ -42,28 +42,39 @@ const ROUND_ORDER_CUP: Record<string, number> = {
   "4": 56, "3": 55, "2": 54, "1": 53, "400": 10,
 };
 
-// Drapeaux des pays pour les compétitions de sélections
-const COUNTRY_FLAG: Record<string, string> = {
-  "Argentina":"🇦🇷","France":"🇫🇷","Germany":"🇩🇪","Spain":"🇪🇸","Portugal":"🇵🇹",
-  "England":"🏴󠁧󠁢󠁥󠁮󠁧󠁿","Brazil":"🇧🇷","Uruguay":"🇺🇾","Colombia":"🇨🇴","Chile":"🇨🇱",
-  "Peru":"🇵🇪","Ecuador":"🇪🇨","Bolivia":"🇧🇴","Paraguay":"🇵🇾","Venezuela":"🇻🇪",
-  "Morocco":"🇲🇦","Egypt":"🇪🇬","Senegal":"🇸🇳","Nigeria":"🇳🇬","Ghana":"🇬🇭",
-  "Ivory Coast":"🇨🇮","Cameroon":"🇨🇲","Algeria":"🇩🇿","Tunisia":"🇹🇳","Mali":"🇲🇱",
-  "Guinea":"🇬🇳","South Africa":"🇿🇦","DR Congo":"🇨🇩","Cape Verde":"🇨🇻",
-  "Zambia":"🇿🇲","Angola":"🇦🇴","Tanzania":"🇹🇿","Namibia":"🇳🇦","Burkina Faso":"🇧🇫",
-  "Italy":"🇮🇹","Netherlands":"🇳🇱","Belgium":"🇧🇪","Croatia":"🇭🇷","Poland":"🇵🇱",
-  "Denmark":"🇩🇰","Sweden":"🇸🇪","Switzerland":"🇨🇭","Austria":"🇦🇹","Serbia":"🇷🇸",
-  "Turkey":"🇹🇷","Hungary":"🇭🇺","Czech Republic":"🇨🇿","Slovakia":"🇸🇰","Romania":"🇷🇴",
-  "Ukraine":"🇺🇦","Scotland":"🏴󠁧󠁢󠁳󠁣󠁴󠁿","Wales":"🏴󠁧󠁢󠁷󠁬󠁳󠁿","Albania":"🇦🇱","Slovenia":"🇸🇮",
-  "USA":"🇺🇸","Mexico":"🇲🇽","Canada":"🇨🇦","Japan":"🇯🇵","South Korea":"🇰🇷",
-  "Australia":"🇦🇺","Saudi Arabia":"🇸🇦","Iran":"🇮🇷","Qatar":"🇶🇦",
-  "Jordan":"🇯🇴","Iraq":"🇮🇶","New Zealand":"🇳🇿","Norway":"🇳🇴","Finland":"🇫🇮",
-  "Georgia":"🇬🇪","North Macedonia":"🇲🇰","Montenegro":"🇲🇪",
-  "Panama":"🇵🇦","Costa Rica":"🇨🇷","Honduras":"🇭🇳","El Salvador":"🇸🇻",
-  "Jamaica":"🇯🇲","Trinidad and Tobago":"🇹🇹","Haiti":"🇭🇹",
-  "Comoros":"🇰🇲","Equatorial Guinea":"🇬🇶","Gambia":"🇬🇲","Mozambique":"🇲🇿",
-  "Guinea-Bissau":"🇬🇼","Mauritania":"🇲🇷","Zimbabwe":"🇿🇼","Ethiopia":"🇪🇹",
+// Codes ISO → images flagcdn.com (compatibles Windows Chrome, contrairement aux emojis)
+const COUNTRY_CODE: Record<string, string> = {
+  "Argentina":"ar","France":"fr","Germany":"de","Spain":"es","Portugal":"pt",
+  "England":"gb-eng","Brazil":"br","Uruguay":"uy","Colombia":"co","Chile":"cl",
+  "Peru":"pe","Ecuador":"ec","Bolivia":"bo","Paraguay":"py","Venezuela":"ve",
+  "Morocco":"ma","Egypt":"eg","Senegal":"sn","Nigeria":"ng","Ghana":"gh",
+  "Ivory Coast":"ci","Cameroon":"cm","Algeria":"dz","Tunisia":"tn","Mali":"ml",
+  "Guinea":"gn","South Africa":"za","DR Congo":"cd","Cape Verde":"cv",
+  "Zambia":"zm","Angola":"ao","Tanzania":"tz","Namibia":"na","Burkina Faso":"bf",
+  "Italy":"it","Netherlands":"nl","Belgium":"be","Croatia":"hr","Poland":"pl",
+  "Denmark":"dk","Sweden":"se","Switzerland":"ch","Austria":"at","Serbia":"rs",
+  "Turkey":"tr","Hungary":"hu","Czech Republic":"cz","Slovakia":"sk","Romania":"ro",
+  "Ukraine":"ua","Scotland":"gb-sct","Wales":"gb-wls","Albania":"al","Slovenia":"si",
+  "USA":"us","Mexico":"mx","Canada":"ca","Japan":"jp","South Korea":"kr",
+  "Australia":"au","Saudi Arabia":"sa","Iran":"ir","Qatar":"qa",
+  "Jordan":"jo","Iraq":"iq","New Zealand":"nz","Norway":"no","Finland":"fi",
+  "Georgia":"ge","North Macedonia":"mk","Montenegro":"me","Kosovo":"xk",
+  "Panama":"pa","Costa Rica":"cr","Honduras":"hn","El Salvador":"sv",
+  "Jamaica":"jm","Trinidad and Tobago":"tt","Haiti":"ht",
+  "Comoros":"km","Equatorial Guinea":"gq","Gambia":"gm","Mozambique":"mz",
+  "Guinea-Bissau":"gw","Mauritania":"mr","Zimbabwe":"zw","Ethiopia":"et",
+  "Libya":"ly","Sudan":"sd","Rwanda":"rw","Uganda":"ug","Kenya":"ke",
+  "Madagascar":"mg","Benin":"bj","Congo DR":"cd","Djibouti":"dj",
+  "Liberia":"lr","Sierra Leone":"sl","Togo":"tg","Burundi":"bi",
+  "Greece":"gr","Iceland":"is","Luxembourg":"lu","Belarus":"by",
+  "Armenia":"am","Azerbaijan":"az","Kazakhstan":"kz","United States":"us",
+  "Netherlands Antilles":"an","Northern Ireland":"gb-nir",
 };
+
+function teamFlagUrl(name: string): string | null {
+  const code = COUNTRY_CODE[name]
+  return code ? `https://flagcdn.com/20x15/${code}.png` : null
+}
 
 function isReallyLive(ev: Event): boolean {
   if (!LIVE_STATUSES.includes(ev.strStatus)) return false;
@@ -185,7 +196,10 @@ export function MatchRowLigue({ ev, upcoming, leagueId }: { ev: Event; upcoming?
         <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             {leagueId && NATIONAL_TEAM_IDS.has(leagueId)
-              ? <span style={{ fontSize: "16px", lineHeight: 1 }}>{COUNTRY_FLAG[ev.strHomeTeam] ?? "🏳️"}</span>
+              ? (() => { const url = teamFlagUrl(ev.strHomeTeam); return url
+                  ? <img src={url} alt={ev.strHomeTeam} width={20} height={15} style={{ objectFit: "contain", flexShrink: 0, borderRadius: 1 }} />
+                  : <span style={{ fontSize: 10, fontWeight: 700, color: "#64748b", minWidth: 20 }}>{ev.strHomeTeam.slice(0,3).toUpperCase()}</span>
+                })()
               : ev.strHomeTeamBadge && (
                   <Image src={ev.strHomeTeamBadge} alt={ev.strHomeTeam}
                     width={16} height={16} style={{ objectFit: "contain" }} unoptimized />
@@ -197,7 +211,10 @@ export function MatchRowLigue({ ev, upcoming, leagueId }: { ev: Event; upcoming?
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             {leagueId && NATIONAL_TEAM_IDS.has(leagueId)
-              ? <span style={{ fontSize: "16px", lineHeight: 1 }}>{COUNTRY_FLAG[ev.strAwayTeam] ?? "🏳️"}</span>
+              ? (() => { const url = teamFlagUrl(ev.strAwayTeam); return url
+                  ? <img src={url} alt={ev.strAwayTeam} width={20} height={15} style={{ objectFit: "contain", flexShrink: 0, borderRadius: 1 }} />
+                  : <span style={{ fontSize: 10, fontWeight: 700, color: "#64748b", minWidth: 20 }}>{ev.strAwayTeam.slice(0,3).toUpperCase()}</span>
+                })()
               : ev.strAwayTeamBadge && (
                   <Image src={ev.strAwayTeamBadge} alt={ev.strAwayTeam}
                     width={16} height={16} style={{ objectFit: "contain" }} unoptimized />

@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       // ← Ajouté pour les logos de ligues et équipes Highlightly
       { protocol: 'https', hostname: 'highlightly.net' },
       { protocol: 'https', hostname: '**.highlightly.net' },
+      { protocol: 'https', hostname: 'flagcdn.com' },
     ],
   },
 }
