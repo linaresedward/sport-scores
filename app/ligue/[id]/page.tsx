@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import Image from "next/image";
 import ShowMoreResults from "./ShowMoreResults";
 import StandingsPanel from "../../components/StandingsPanel";
 import LeagueFavoriteButton from "../../components/LeagueFavoriteButton";
 import { RoundBlock } from "./RoundBlock";
 import type { Event } from "./RoundBlock";
-import { HIGHLIGHTLY_TO_SPORTSDB, SPORTSDB_CUP_IDS } from "../../../lib/labels";
+import { HIGHLIGHTLY_TO_SPORTSDB, SPORTSDB_CUP_IDS, translateCountry } from "../../../lib/labels";
 import HighlightlyLeaguePage from "./HighlightlyLeaguePage";
 
 const KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY;
@@ -34,6 +35,7 @@ async function getLeagueInfo(id: string) {
 }
 
 async function getLeagueMatches(id: string, season: string) {
+  const today = new Date().toISOString().split("T")[0];
   const [resSeason, resNext] = await Promise.all([
     fetch(`https://www.thesportsdb.com/api/v1/json/${KEY}/eventsseason.php?id=${id}&s=${season}`, { next: { revalidate: 300 } }),
     fetch(`https://www.thesportsdb.com/api/v1/json/${KEY}/eventsnextleague.php?id=${id}`, { next: { revalidate: 60 } }),
@@ -41,7 +43,16 @@ async function getLeagueMatches(id: string, season: string) {
   const [seasonData, nextData] = await Promise.all([resSeason.json(), resNext.json()]);
   const allEvents: Event[] = seasonData.events || [];
   const past = allEvents.filter((e: Event) => e.intHomeScore !== null);
-  const next: Event[] = nextData.events || [];
+
+  // eventsnextleague ne retourne pas toutes les journées à venir
+  // → compléter avec eventsseason (matchs sans score et date >= aujourd'hui)
+  const nextFromAPI: Event[] = nextData.events || [];
+  const nextIds = new Set(nextFromAPI.map((e: Event) => e.idEvent));
+  const extraFuture = allEvents.filter(
+    (e: Event) => e.intHomeScore === null && e.dateEvent >= today && !nextIds.has(e.idEvent)
+  );
+  const next: Event[] = [...nextFromAPI, ...extraFuture];
+
   return { past, next };
 }
 
@@ -65,6 +76,8 @@ function groupByRound(events: Event[], leagueId?: string): { round: string; even
 
 export default async function LiguePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: rawId } = await params;
+  const cookieStore = await cookies();
+  const lang = cookieStore.get("lang")?.value ?? "fr";
 
   // Convertit un ID Highlightly (sidebar) en ID TheSportsDB
   const id = HIGHLIGHTLY_TO_SPORTSDB[rawId] ?? rawId;
@@ -104,7 +117,7 @@ export default async function LiguePage({ params }: { params: Promise<{ id: stri
             {league.strLeague}
           </h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "2px 0 0" }}>
-            {league.strCountry} · {league.strCurrentSeason}
+            {translateCountry(league.strCountry, lang)} · {league.strCurrentSeason}
           </p>
         </div>
         {/* LeagueFavoriteButton utilise l'ID Highlightly pour la sidebar */}

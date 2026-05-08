@@ -9,6 +9,12 @@ const LEAGUE_MAP: Record<string, string> = {
   "115669": "4332", // Serie A
   "75672":  "4337", // Eredivisie
   "80778":  "4344", // Primeira Liga
+  "173537": "4339", // Süper Lig — nécessaire pour strForm + strDescription (zones européennes)
+}
+
+// Saisons TheSportsDB spéciales (quand la saison active n'est pas "2025-2026")
+const SPECIAL_SEASONS: Record<string, string> = {
+  "5890": "2023",   // CAN 2024 (Ivory Coast) = saison "2023" dans TheSportsDB
 }
 
 const SPORTSDB_KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY ?? "139695"
@@ -16,41 +22,45 @@ const SPORTSDB_KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY ?? "139695"
 // Cache mémoire TheSportsDB — 1 heure
 const formCache = new Map<string, { data: Record<string, string>; ts: number }>()
 
-async function getFormMap(highlightlyId: string): Promise<Record<string, string>> {
+interface TeamData { form: string; description: string }
+
+async function getFormMap(highlightlyId: string): Promise<Record<string, TeamData>> {
   const sportsdbId = LEAGUE_MAP[highlightlyId]
   if (!sportsdbId) return {}
 
   const cached = formCache.get(highlightlyId)
-  if (cached && Date.now() - cached.ts < 3_600_000) return cached.data
+  if (cached && Date.now() - cached.ts < 3_600_000) return cached.data as any
 
+  const season = SPECIAL_SEASONS[highlightlyId] ?? "2025-2026"
   try {
-    const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/lookuptable.php?l=${sportsdbId}&s=2025-2026`
+    const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/lookuptable.php?l=${sportsdbId}&s=${season}`
     const res  = await fetch(url, { next: { revalidate: 3600 } })
     const json = await res.json()
 
-    const map: Record<string, string> = {}
+    const map: Record<string, TeamData> = {}
     for (const row of json.table ?? []) {
-      if (row.strTeam && row.strForm) {
-        map[row.strTeam.toLowerCase()] = row.strForm
+      if (row.strTeam) {
+        map[row.strTeam.toLowerCase()] = {
+          form:        row.strForm ?? "",
+          description: row.strDescription ?? "",
+        }
       }
     }
 
-    formCache.set(highlightlyId, { data: map, ts: Date.now() })
+    formCache.set(highlightlyId, { data: map as any, ts: Date.now() })
     return map
   } catch {
     return {}
   }
 }
 
-function matchForm(formMap: Record<string, string>, teamName: string): string {
+function matchTeam(formMap: Record<string, TeamData>, teamName: string): TeamData {
   const lower = teamName.toLowerCase()
-  // Recherche exacte
   if (formMap[lower]) return formMap[lower]
-  // Recherche partielle
   for (const [key, val] of Object.entries(formMap)) {
     if (key.includes(lower) || lower.includes(key)) return val
   }
-  return ""
+  return { form: "", description: "" }
 }
 
 export async function GET(req: NextRequest) {
@@ -80,28 +90,28 @@ export async function GET(req: NextRequest) {
   const formMap = await getFormMap(leagueId)
 
   // 3. Merge — injecter strForm dans chaque row
-  if (Object.keys(formMap).length > 0) {
-    const groups = data.groups ?? []
-    for (const group of groups) {
-      for (const row of group.standings ?? []) {
-        const teamName = row.team?.name ?? ""
-        row.strForm    = matchForm(formMap, teamName)
-        // Copier aussi les champs TheSportsDB attendus par StandingsPanel
-        row.strTeam    = teamName
-        row.intRank    = String(row.position ?? "")
-        row.intPlayed  = String(row.total?.games ?? "")
-        row.intWin     = String(row.total?.wins ?? "")
-        row.intLoss    = String(row.total?.loses ?? "")
-        row.intPoints  = String(row.points ?? "")
-        row.intGoalDifference = String(
-          (row.total?.scoredGoals ?? 0) - (row.total?.receivedGoals ?? 0)
-        )
-        row.strBadge   = row.team?.logo ?? ""
-        row.strDescription = row.description ?? ""
-        row.intDraw         = String(row.total?.draws ?? "")
-row.intGoalsFor     = String(row.total?.scoredGoals ?? "")
-row.intGoalsAgainst = String(row.total?.receivedGoals ?? "")
-      }
+  // Merge TheSportsDB form + description into Highlightly standings rows
+  const groups = data.groups ?? []
+  for (const group of groups) {
+    for (const row of group.standings ?? []) {
+      const teamName = row.team?.name ?? ""
+      const td = matchTeam(formMap, teamName)
+      row.strForm        = td.form
+      row.strDescription = td.description || row.description || ""
+      // Normaliser les champs au format attendu par StandingsPanel
+      row.strTeam         = teamName
+      row.intRank         = String(row.position ?? "")
+      row.intPlayed       = String(row.total?.games ?? "")
+      row.intWin          = String(row.total?.wins ?? "")
+      row.intLoss         = String(row.total?.loses ?? "")
+      row.intDraw         = String(row.total?.draws ?? "")
+      row.intPoints       = String(row.points ?? "")
+      row.intGoalDifference = String(
+        (row.total?.scoredGoals ?? 0) - (row.total?.receivedGoals ?? 0)
+      )
+      row.intGoalsFor     = String(row.total?.scoredGoals ?? "")
+      row.intGoalsAgainst = String(row.total?.receivedGoals ?? "")
+      row.strBadge        = row.team?.logo ?? ""
     }
   }
 

@@ -14,8 +14,9 @@ export async function GET(req: NextRequest) {
   const leagueId = req.nextUrl.searchParams.get("leagueId")
   if (!leagueId) return NextResponse.json({ error: "leagueId required" }, { status: 400 })
 
-  // Scanne -10 jours → +7 jours (17 dates) en parallèle
-  const offsets = Array.from({ length: 17 }, (_, i) => i - 10)
+  // Scanne -10 jours → +30 jours (40 dates) en parallèle
+  // +30 pour inclure les finales et matchs tardifs (ex: Conference League finale mai-juin)
+  const offsets = Array.from({ length: 40 }, (_, i) => i - 10)
   const dates   = offsets.map(dateStr)
 
   const fetchDay = async (date: string) => {

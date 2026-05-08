@@ -27,12 +27,42 @@ type Event = {
 export type { Event };
 
 const LIVE_STATUSES = ["In Progress", "HT", "1H", "2H", "ET", "P", "LIVE"];
-const CUP_IDS = ["4480", "4481", "4482", "4483"];
+
+// IDs TheSportsDB des compétitions à format coupe (ordre spécial des rounds)
+const CUP_IDS = ["4480", "4481", "4482", "4483", "4429", "4499", "4496", "4523"];
+
+// Compétitions de sélections nationales → afficher drapeaux au lieu de badges
+const NATIONAL_TEAM_IDS = new Set(["4429", "4499", "4496", "4523", "4490"]);
 
 const ROUND_ORDER_CUP: Record<string, number> = {
+  "200": 120, // Finale (TheSportsDB code)
+  "0":   110, // Finale alternative
   "150": 100, "125": 90, "16": 80, "32": 70,
   "8": 60, "7": 59, "6": 58, "5": 57,
   "4": 56, "3": 55, "2": 54, "1": 53, "400": 10,
+};
+
+// Drapeaux des pays pour les compétitions de sélections
+const COUNTRY_FLAG: Record<string, string> = {
+  "Argentina":"🇦🇷","France":"🇫🇷","Germany":"🇩🇪","Spain":"🇪🇸","Portugal":"🇵🇹",
+  "England":"🏴󠁧󠁢󠁥󠁮󠁧󠁿","Brazil":"🇧🇷","Uruguay":"🇺🇾","Colombia":"🇨🇴","Chile":"🇨🇱",
+  "Peru":"🇵🇪","Ecuador":"🇪🇨","Bolivia":"🇧🇴","Paraguay":"🇵🇾","Venezuela":"🇻🇪",
+  "Morocco":"🇲🇦","Egypt":"🇪🇬","Senegal":"🇸🇳","Nigeria":"🇳🇬","Ghana":"🇬🇭",
+  "Ivory Coast":"🇨🇮","Cameroon":"🇨🇲","Algeria":"🇩🇿","Tunisia":"🇹🇳","Mali":"🇲🇱",
+  "Guinea":"🇬🇳","South Africa":"🇿🇦","DR Congo":"🇨🇩","Cape Verde":"🇨🇻",
+  "Zambia":"🇿🇲","Angola":"🇦🇴","Tanzania":"🇹🇿","Namibia":"🇳🇦","Burkina Faso":"🇧🇫",
+  "Italy":"🇮🇹","Netherlands":"🇳🇱","Belgium":"🇧🇪","Croatia":"🇭🇷","Poland":"🇵🇱",
+  "Denmark":"🇩🇰","Sweden":"🇸🇪","Switzerland":"🇨🇭","Austria":"🇦🇹","Serbia":"🇷🇸",
+  "Turkey":"🇹🇷","Hungary":"🇭🇺","Czech Republic":"🇨🇿","Slovakia":"🇸🇰","Romania":"🇷🇴",
+  "Ukraine":"🇺🇦","Scotland":"🏴󠁧󠁢󠁳󠁣󠁴󠁿","Wales":"🏴󠁧󠁢󠁷󠁬󠁳󠁿","Albania":"🇦🇱","Slovenia":"🇸🇮",
+  "USA":"🇺🇸","Mexico":"🇲🇽","Canada":"🇨🇦","Japan":"🇯🇵","South Korea":"🇰🇷",
+  "Australia":"🇦🇺","Saudi Arabia":"🇸🇦","Iran":"🇮🇷","Qatar":"🇶🇦",
+  "Jordan":"🇯🇴","Iraq":"🇮🇶","New Zealand":"🇳🇿","Norway":"🇳🇴","Finland":"🇫🇮",
+  "Georgia":"🇬🇪","North Macedonia":"🇲🇰","Montenegro":"🇲🇪",
+  "Panama":"🇵🇦","Costa Rica":"🇨🇷","Honduras":"🇭🇳","El Salvador":"🇸🇻",
+  "Jamaica":"🇯🇲","Trinidad and Tobago":"🇹🇹","Haiti":"🇭🇹",
+  "Comoros":"🇰🇲","Equatorial Guinea":"🇬🇶","Gambia":"🇬🇲","Mozambique":"🇲🇿",
+  "Guinea-Bissau":"🇬🇼","Mauritania":"🇲🇷","Zimbabwe":"🇿🇼","Ethiopia":"🇪🇹",
 };
 
 function isReallyLive(ev: Event): boolean {
@@ -51,6 +81,7 @@ function getRoundLabel(round: string | null, leagueId: string | undefined, t: (k
   if (!round) return t("group_stage");
   const isCup = leagueId ? CUP_IDS.includes(leagueId) : false;
   if (isCup) {
+    if (round === "200" || round === "0") return "Finale";
     if (round === "150") return t("semifinal");
     if (round === "125") return t("quarterfinal");
     if (round === "32")  return t("playoff");
@@ -92,7 +123,7 @@ export function RoundBlock({ round, events, upcoming, leagueId }: {
         {events.map((ev, idx) => (
           <div key={ev.idEvent}>
             {idx > 0 && <div style={{ height: "1px", background: "#f8fafc", marginLeft: "16px" }} />}
-            <MatchRowLigue ev={ev} upcoming={upcoming} />
+            <MatchRowLigue ev={ev} upcoming={upcoming} leagueId={leagueId} />
           </div>
         ))}
       </div>
@@ -100,7 +131,7 @@ export function RoundBlock({ round, events, upcoming, leagueId }: {
   );
 }
 
-export function MatchRowLigue({ ev, upcoming }: { ev: Event; upcoming?: boolean }) {
+export function MatchRowLigue({ ev, upcoming, leagueId }: { ev: Event; upcoming?: boolean; leagueId?: string }) {
   const { t } = useT();
   const live = isReallyLive(ev);
   const hasScore = ev.intHomeScore !== null && ev.intAwayScore !== null;
@@ -153,19 +184,25 @@ export function MatchRowLigue({ ev, upcoming }: { ev: Event; upcoming?: boolean 
         {/* Colonne équipes */}
         <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {ev.strHomeTeamBadge && (
-              <Image src={ev.strHomeTeamBadge} alt={ev.strHomeTeam}
-                width={16} height={16} style={{ objectFit: "contain" }} unoptimized />
-            )}
+            {leagueId && NATIONAL_TEAM_IDS.has(leagueId)
+              ? <span style={{ fontSize: "16px", lineHeight: 1 }}>{COUNTRY_FLAG[ev.strHomeTeam] ?? "🏳️"}</span>
+              : ev.strHomeTeamBadge && (
+                  <Image src={ev.strHomeTeamBadge} alt={ev.strHomeTeam}
+                    width={16} height={16} style={{ objectFit: "contain" }} unoptimized />
+                )
+            }
             <span style={{ fontSize: "13px", fontWeight: homeWin ? 700 : 400, color: homeWin ? "#0f172a" : "#475569" }}>
               {ev.strHomeTeam}
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {ev.strAwayTeamBadge && (
-              <Image src={ev.strAwayTeamBadge} alt={ev.strAwayTeam}
-                width={16} height={16} style={{ objectFit: "contain" }} unoptimized />
-            )}
+            {leagueId && NATIONAL_TEAM_IDS.has(leagueId)
+              ? <span style={{ fontSize: "16px", lineHeight: 1 }}>{COUNTRY_FLAG[ev.strAwayTeam] ?? "🏳️"}</span>
+              : ev.strAwayTeamBadge && (
+                  <Image src={ev.strAwayTeamBadge} alt={ev.strAwayTeam}
+                    width={16} height={16} style={{ objectFit: "contain" }} unoptimized />
+                )
+            }
             <span style={{ fontSize: "13px", fontWeight: awayWin ? 700 : 400, color: awayWin ? "#0f172a" : "#475569" }}>
               {ev.strAwayTeam}
             </span>
