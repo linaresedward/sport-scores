@@ -62,9 +62,10 @@ export async function GET(req: NextRequest) {
   try {
     let offset = 0
     const limit = 100
-    let totalCount = Infinity
 
-    while (offset < totalCount && offset < 300) {
+    // Boucle jusqu'à épuisement des pages — sans dépendre de totalCount
+    // (Highlightly ne retourne pas toujours pagination.totalCount de façon fiable)
+    while (offset < 2000) {
       const res = await fetch(
         `${BASE}/matches?date=${date}&timezone=UTC&limit=${limit}&offset=${offset}`,
         {
@@ -75,13 +76,10 @@ export async function GET(req: NextRequest) {
           cache: "no-store",
         }
       )
-      console.log("Highlightly status:", res.status, "date:", date)
       if (!res.ok) break
 
       const data = await res.json()
-      console.log("RAW DATA:", JSON.stringify(data).slice(0, 500))
       const matches: any[] = data.data ?? []
-      totalCount = data.pagination?.totalCount ?? 0
 
       for (const match of matches) {
         const key = String(match.league?.id ?? "unknown")
@@ -89,8 +87,9 @@ export async function GET(req: NextRequest) {
         grouped[key].push(match)
       }
 
+      // Dernière page : moins de résultats que demandé → on arrête
+      if (matches.length < limit) break
       offset += limit
-      if (matches.length === 0) break
     }
   } catch (err) {
     console.error("Highlightly error:", err)
