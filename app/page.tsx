@@ -490,9 +490,7 @@ export default function HomePage() {
 
   const sortedLeagues = sortLeagues(filteredMatchesByLeague)
   const allMatches    = Object.values(matchesByLeague).flat()
-  const hasLive       = allMatches.some(m => LIVE_STATUSES.includes(normalizeStatus(m.state.description)))
-  const liveCount     = allMatches.filter(m => LIVE_STATUSES.includes(normalizeStatus(m.state.description))).length
-  const finishedCount = allMatches.filter(m => FINISHED_SET.has(normalizeStatus(m.state.description))).length
+  const hasLive = allMatches.some(m => LIVE_STATUSES.includes(normalizeStatus(m.state.description)))
   const dateLocale = lang === 'fr' ? 'fr-FR' : 'en-GB'
 
   return (
@@ -521,9 +519,9 @@ export default function HomePage() {
           marginBottom: 16, gap: 0,
         }}>
           {([
-            { key: 'all',      labelFr: 'Tous',      labelEn: 'All',      count: allMatches.length },
-            { key: 'live',     labelFr: 'En Direct', labelEn: 'Live',     count: liveCount },
-            { key: 'finished', labelFr: 'Terminés',  labelEn: 'Finished', count: finishedCount },
+            { key: 'all',      labelFr: 'Tous',      labelEn: 'All' },
+            { key: 'live',     labelFr: 'En Direct', labelEn: 'Live' },
+            { key: 'finished', labelFr: 'Terminés',  labelEn: 'Finished' },
           ] as const).map(tab => {
             const isActive = activeTab === tab.key
             const label    = lang === 'fr' ? tab.labelFr : tab.labelEn
@@ -544,15 +542,6 @@ export default function HomePage() {
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', animation: 'livePulse 1.5s ease-in-out infinite' }} />
                 )}
                 {label}
-                {tab.count > 0 && (
-                  <span style={{
-                    fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 10,
-                    background: isActive ? 'rgba(239,68,68,0.15)' : 'var(--bg-muted)',
-                    color: isActive ? '#ef4444' : 'var(--text-muted)',
-                  }}>
-                    {tab.count}
-                  </span>
-                )}
               </button>
             )
           })}
