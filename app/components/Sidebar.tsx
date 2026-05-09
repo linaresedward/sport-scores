@@ -463,16 +463,18 @@ export default function Sidebar() {
 
   const [activeLeague, setActiveLeague] = useState<string | null>(null)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    setActiveLeague(params.get("league"))
+    // Détecte la ligue active depuis le pathname /hockey/league/[slug] ou /basketball/league/[slug]
+    const match = pathname.match(/\/(hockey|basketball)\/league\/(.+)/)
+    setActiveLeague(match ? decodeURIComponent(match[2]) : null)
   }, [pathname])
 
   const isHockey     = pathname.startsWith("/hockey")
   const isBasketball = pathname.startsWith("/basketball")
 
   const selectLeague = (sport: string) => (name: string | null) => {
-    const url = name ? `/${sport}?league=${encodeURIComponent(name)}` : `/${sport}`
-    router.push(url)
+    if (!name) { router.push(`/${sport}`); setActiveLeague(null); return }
+    // Option B : page dédiée avec historique + prochains matchs
+    router.push(`/${sport}/league/${encodeURIComponent(name)}`)
     setActiveLeague(name)
   }
 
