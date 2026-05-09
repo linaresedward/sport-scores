@@ -244,13 +244,16 @@ function LeagueBlock({ group, lang }: { group: LeagueGroup; lang: string }) {
 }
 
 // ─── Page principale ──────────────────────────────────────
+const HOCKEY_FINISHED = new Set(["Finished", "Finished after over time", "Finished after penalties"])
+
 export default function HockeyClient() {
   const { lang } = useT()
   const searchParams  = useSearchParams()
-  const leagueFilter  = searchParams.get('league') // filtre venant de la sidebar
+  const leagueFilter  = searchParams.get('league')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [groups,  setGroups]  = useState<LeagueGroup[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'all' | 'live' | 'finished' | 'upcoming'>('all')
 
   const load = useCallback(async (date: Date) => {
     setLoading(true)
@@ -289,11 +292,21 @@ export default function HockeyClient() {
 
   useEffect(() => { load(selectedDate) }, [selectedDate, load])
 
-  // Filtrer par ligue si demandé depuis la sidebar
-  const displayGroups = useMemo(() =>
-    leagueFilter ? groups.filter(g => g.name === leagueFilter) : groups,
-    [groups, leagueFilter]
-  )
+  // Filtrer par ligue + par onglet
+  const displayGroups = useMemo(() => {
+    let base = leagueFilter ? groups.filter(g => g.name === leagueFilter) : groups
+    if (activeTab === 'all') return base
+    return base.map(g => ({
+      ...g,
+      matches: g.matches.filter(m => {
+        const d = m.state.description
+        if (activeTab === 'live')     return LIVE_DESCRIPTIONS.includes(d)
+        if (activeTab === 'finished') return HOCKEY_FINISHED.has(d)
+        if (activeTab === 'upcoming') return d === 'Not started'
+        return true
+      })
+    })).filter(g => g.matches.length > 0)
+  }, [groups, leagueFilter, activeTab])
 
   const totalMatches = displayGroups.reduce((a, g) => a + g.matches.length, 0)
   const hasLive = displayGroups.some(g =>
@@ -332,9 +345,36 @@ export default function HockeyClient() {
       </div>
 
       {/* DatePicker */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-        <DatePicker selected={selectedDate} onChange={setSelectedDate} lang={lang as 'fr' | 'en'} />
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+        <DatePicker selected={selectedDate} onChange={(d) => { setSelectedDate(d); setActiveTab('all') }} lang={lang as 'fr' | 'en'} />
       </div>
+
+      {/* Onglets */}
+      {!loading && (
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
+          {([
+            { key: 'all',      fr: 'Tous',      en: 'All' },
+            { key: 'live',     fr: 'En Direct',  en: 'Live' },
+            { key: 'finished', fr: 'Terminés',   en: 'Finished' },
+            { key: 'upcoming', fr: 'À venir',    en: 'Upcoming' },
+          ] as const).map(tab => {
+            const isActive = activeTab === tab.key
+            return (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+                padding: '8px 12px', border: 'none', cursor: 'pointer', background: 'transparent',
+                fontSize: 13, fontWeight: isActive ? 700 : 500,
+                color: isActive ? '#ef4444' : 'var(--text-muted)',
+                borderBottom: `2px solid ${isActive ? '#ef4444' : 'transparent'}`,
+                marginBottom: -1, transition: 'color .15s, border-color .15s',
+                display: 'flex', alignItems: 'center', gap: 5,
+              }}>
+                {tab.key === 'live' && isActive && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', animation: 'hkPulse 1.4s infinite' }} />}
+                {lang === 'fr' ? tab.fr : tab.en}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Contenu */}
       {loading ? (

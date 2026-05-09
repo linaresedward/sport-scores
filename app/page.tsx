@@ -405,7 +405,7 @@ export default function HomePage() {
   const [loading, setLoading]                 = useState(true)
   const [lastRefresh, setLastRefresh]         = useState<Date | null>(null)
   const [goalFlashes, setGoalFlashes]         = useState<Record<string, GoalFlash>>({})
-  const [activeTab, setActiveTab]             = useState<'all' | 'live' | 'finished'>('all')
+  const [activeTab, setActiveTab]             = useState<'all' | 'live' | 'finished' | 'upcoming'>('all')
   const prevScoresRef                         = useRef<Record<string, string | null>>({})
 
   const FINISHED_SET = useMemo(() => new Set(["Match Finished", "FT-P", "FT-ET"]), [])
@@ -421,6 +421,7 @@ export default function HomePage() {
             const s = normalizeStatus(m.state.description)
             if (activeTab === 'live')     return LIVE_STATUSES.includes(s)
             if (activeTab === 'finished') return FINISHED_SET.has(s)
+            if (activeTab === 'upcoming') return s === 'NS'
             return true
           }),
         ])
@@ -522,6 +523,7 @@ export default function HomePage() {
             { key: 'all',      labelFr: 'Tous',      labelEn: 'All' },
             { key: 'live',     labelFr: 'En Direct', labelEn: 'Live' },
             { key: 'finished', labelFr: 'Terminés',  labelEn: 'Finished' },
+            { key: 'upcoming', labelFr: 'À venir',   labelEn: 'Upcoming' },
           ] as const).map(tab => {
             const isActive = activeTab === tab.key
             const label    = lang === 'fr' ? tab.labelFr : tab.labelEn

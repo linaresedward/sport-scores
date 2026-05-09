@@ -251,6 +251,9 @@ function LeagueBlock({ group, lang }: { group: LeagueGroup; lang: string }) {
   )
 }
 
+const BASK_FINISHED  = new Set(['FT', 'AOT'])
+const BASK_LIVE      = new Set(['Q1','Q2','Q3','Q4','OT','HT','In Progress','LIVE'])
+
 export default function SportDayClient({
   sport, sportLabel, emoji,
 }: {
@@ -262,6 +265,7 @@ export default function SportDayClient({
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [groups, setGroups]             = useState<LeagueGroup[]>([])
   const [loading, setLoading]           = useState(true)
+  const [activeTab, setActiveTab]       = useState<'all'|'live'|'finished'|'upcoming'>('all')
 
   useEffect(function() {
     async function fetch_() {
@@ -282,11 +286,22 @@ export default function SportDayClient({
     fetch_()
   }, [selectedDate, sport])
 
-  // Filtrer par ligue si demandé depuis la sidebar
-  const displayGroups = useMemo(() =>
-    leagueFilter ? groups.filter(function(g) { return g.name === leagueFilter }) : groups,
-    [groups, leagueFilter]
-  )
+  // Filtrer par ligue + onglet
+  const displayGroups = useMemo(() => {
+    const base = leagueFilter ? groups.filter(function(g) { return g.name === leagueFilter }) : groups
+    if (activeTab === 'all') return base
+    return base.map(function(g) {
+      return {
+        ...g,
+        events: g.events.filter(function(e) {
+          if (activeTab === 'live')     return BASK_LIVE.has(e.strStatus)
+          if (activeTab === 'finished') return BASK_FINISHED.has(e.strStatus)
+          if (activeTab === 'upcoming') return e.strStatus === 'NS'
+          return true
+        })
+      }
+    }).filter(function(g) { return g.events.length > 0 })
+  }, [groups, leagueFilter, activeTab])
 
   const totalMatches = displayGroups.reduce(function(a, g) { return a + g.events.length }, 0)
   const hasLive = displayGroups.some(function(g) {
@@ -315,18 +330,40 @@ export default function SportDayClient({
             {totalMatches} match{totalMatches > 1 ? 's' : ''}
           </p>
         </div>
-        {hasLive && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '4px 12px', borderRadius: 999, border: '1px solid rgba(239,68,68,0.2)' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', animation: 'bkPulse 1.4s infinite' }} />
-            {lang === 'fr' ? 'EN DIRECT' : 'LIVE'}
-          </span>
-        )}
+        {/* Badge retiré — onglet "En Direct" suffit */}
       </div>
 
       {/* DatePicker */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-        <DatePicker selected={selectedDate} onChange={setSelectedDate} lang={lang as 'fr' | 'en'} />
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+        <DatePicker selected={selectedDate} onChange={function(d){ setSelectedDate(d); setActiveTab('all') }} lang={lang as 'fr' | 'en'} />
       </div>
+
+      {/* Onglets */}
+      {!loading && (
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
+          {[
+            { key: 'all',      fr: 'Tous',     en: 'All' },
+            { key: 'live',     fr: 'En Direct', en: 'Live' },
+            { key: 'finished', fr: 'Terminés',  en: 'Finished' },
+            { key: 'upcoming', fr: 'À venir',   en: 'Upcoming' },
+          ].map(function(tab) {
+            const isActive = activeTab === tab.key
+            return (
+              <button key={tab.key} onClick={function(){ setActiveTab(tab.key as any) }} style={{
+                padding: '8px 12px', border: 'none', cursor: 'pointer', background: 'transparent',
+                fontSize: 13, fontWeight: isActive ? 700 : 500,
+                color: isActive ? '#ef4444' : 'var(--text-muted)',
+                borderBottom: '2px solid ' + (isActive ? '#ef4444' : 'transparent'),
+                marginBottom: -1, transition: 'color .15s, border-color .15s',
+                display: 'flex', alignItems: 'center', gap: 5,
+              }}>
+                {tab.key === 'live' && isActive && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', animation: 'bkPulse 1.4s infinite' }} />}
+                {lang === 'fr' ? tab.fr : tab.en}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Contenu */}
       {loading ? (
