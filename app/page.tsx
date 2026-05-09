@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import MatchSkeleton from './components/MatchSkeleton'
 import { getMatchesByDate, HMatch, normalizeStatus } from '../lib/highlightly'
 import { translateStatus, translateCountry as _translateCountry } from '../lib/labels'
@@ -215,7 +215,7 @@ function MatchRow({ match, lang, goalFlash }: { match: HMatch; lang: string; goa
           gridTemplateColumns: "60px 1fr auto",
 minWidth: 0,
 overflow: "hidden",
-          alignItems: "center", padding: "10px 12px",
+          alignItems: "center", padding: "7px 12px",
           gap: "12px", textDecoration: "none", color: "inherit",
         }}
       >
@@ -262,10 +262,12 @@ overflow: "hidden",
             <span style={{
               fontSize: "13px", fontWeight: homeWin ? 700 : 400,
               color: isLive ? liveColor : homeWin ? "var(--text-primary)" : "var(--text-secondary)",
+              fontVariantNumeric: "tabular-nums",
             }}>{homeScore}</span>
             <span style={{
               fontSize: "13px", fontWeight: awayWin ? 700 : 400,
               color: isLive ? liveColor : awayWin ? "var(--text-primary)" : "var(--text-secondary)",
+              fontVariantNumeric: "tabular-nums",
             }}>{awayScore}</span>
           </div>
         )}
@@ -403,7 +405,28 @@ export default function HomePage() {
   const [loading, setLoading]                 = useState(true)
   const [lastRefresh, setLastRefresh]         = useState<Date | null>(null)
   const [goalFlashes, setGoalFlashes]         = useState<Record<string, GoalFlash>>({})
+  const [activeTab, setActiveTab]             = useState<'all' | 'live' | 'finished'>('all')
   const prevScoresRef                         = useRef<Record<string, string | null>>({})
+
+  const FINISHED_SET = useMemo(() => new Set(["Match Finished", "FT-P", "FT-ET"]), [])
+
+  // ── Filtre les matchs selon l'onglet actif ──────────────────
+  const filteredMatchesByLeague = useMemo(() => {
+    if (activeTab === 'all') return matchesByLeague
+    return Object.fromEntries(
+      Object.entries(matchesByLeague)
+        .map(([key, matches]) => [
+          key,
+          matches.filter(m => {
+            const s = normalizeStatus(m.state.description)
+            if (activeTab === 'live')     return LIVE_STATUSES.includes(s)
+            if (activeTab === 'finished') return FINISHED_SET.has(s)
+            return true
+          }),
+        ])
+        .filter(([, ms]) => (ms as HMatch[]).length > 0)
+    ) as Record<string, HMatch[]>
+  }, [matchesByLeague, activeTab, FINISHED_SET])
 
   const load = useCallback(async (showLoading = true) => {
     if (showLoading) { setLoading(true); setMatchesByLeague({}); setGoalFlashes({}) }
@@ -465,11 +488,11 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [matchesByLeague, selectedDate, load])
 
-  const sortedLeagues = sortLeagues(matchesByLeague)
+  const sortedLeagues = sortLeagues(filteredMatchesByLeague)
   const allMatches    = Object.values(matchesByLeague).flat()
-  const hasLive       = allMatches.some(m =>
-    LIVE_STATUSES.includes(normalizeStatus(m.state.description))
-  )
+  const hasLive       = allMatches.some(m => LIVE_STATUSES.includes(normalizeStatus(m.state.description)))
+  const liveCount     = allMatches.filter(m => LIVE_STATUSES.includes(normalizeStatus(m.state.description))).length
+  const finishedCount = allMatches.filter(m => FINISHED_SET.has(normalizeStatus(m.state.description))).length
   const dateLocale = lang === 'fr' ? 'fr-FR' : 'en-GB'
 
   return (
@@ -483,13 +506,58 @@ export default function HomePage() {
       `}</style>
 
       {/* DatePicker */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
         <DatePicker
           selected={selectedDate}
-          onChange={(date) => setSelectedDate(date)}
+          onChange={(date) => { setSelectedDate(date); setActiveTab('all') }}
           lang={lang as "fr" | "en"}
         />
       </div>
+
+      {/* Onglets Tous / En Direct / Terminés */}
+      {!loading && (
+        <div style={{
+          display: 'flex', borderBottom: '1px solid var(--border)',
+          marginBottom: 16, gap: 0,
+        }}>
+          {([
+            { key: 'all',      labelFr: 'Tous',      labelEn: 'All',      count: allMatches.length },
+            { key: 'live',     labelFr: 'En Direct', labelEn: 'Live',     count: liveCount },
+            { key: 'finished', labelFr: 'Terminés',  labelEn: 'Finished', count: finishedCount },
+          ] as const).map(tab => {
+            const isActive = activeTab === tab.key
+            const label    = lang === 'fr' ? tab.labelFr : tab.labelEn
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: '8px 14px', border: 'none', cursor: 'pointer', background: 'transparent',
+                  fontSize: 13, fontWeight: isActive ? 700 : 500,
+                  color: isActive ? '#ef4444' : 'var(--text-muted)',
+                  borderBottom: `2px solid ${isActive ? '#ef4444' : 'transparent'}`,
+                  marginBottom: -1, transition: 'color 0.15s, border-color 0.15s',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                }}
+              >
+                {tab.key === 'live' && isActive && (
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', animation: 'livePulse 1.5s ease-in-out infinite' }} />
+                )}
+                {label}
+                {tab.count > 0 && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 10,
+                    background: isActive ? 'rgba(239,68,68,0.15)' : 'var(--bg-muted)',
+                    color: isActive ? '#ef4444' : 'var(--text-muted)',
+                  }}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Bandeau LIVE */}
       {hasLive && !loading && (
