@@ -3,7 +3,7 @@ import HockeyClient from './HockeyClient'
 import MatchSkeleton from '@/app/components/MatchSkeleton'
 
 export const metadata = {
-  title: 'Hockey sur glace — SportScores',
+  title: 'Hockey sur glace — NyxScores',
   description: 'Scores en direct NHL, AHL, KHL et toutes les ligues de hockey sur glace.',
 }
 

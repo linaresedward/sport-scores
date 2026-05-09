@@ -32,7 +32,7 @@ export default function Topbar() {
       {/* Logo */}
       <Link href="/" className="topbar__logo">
         <div className="topbar__logo-dot" />
-        <span>SportScores</span>
+        <span>NyxScores</span>
       </Link>
 
       {/* Navigation sports — desktop seulement */}

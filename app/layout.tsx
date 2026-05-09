@@ -8,8 +8,8 @@ import './globals.css'
 const geist = Geist({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'SportScores — Résultats et scores en direct',
-  description: 'Scores en direct, résultats et classements football, tennis et basketball. Champions League, Ligue 1, Premier League et plus.',
+  title: 'NyxScores — Résultats et scores en direct',
+  description: 'Scores en direct, résultats et classements football, hockey, basketball. Champions League, Ligue 1, Premier League et plus. NyxScores.',
   viewport: 'width=device-width, initial-scale=1',
 }
 

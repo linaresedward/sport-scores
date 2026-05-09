@@ -135,7 +135,7 @@ export default function MobileMenu() {
           <div className="mobile-menu-header">
             <div className="topbar__logo">
               <div className="topbar__logo-dot" />
-              <span>SportScores</span>
+              <span>NyxScores</span>
             </div>
             <button onClick={() => setOpen(false)} className="mobile-menu-close" aria-label="Fermer">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
