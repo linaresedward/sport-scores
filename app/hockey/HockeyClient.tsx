@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import DatePicker from '@/app/components/DatePicker'
@@ -245,6 +246,8 @@ function LeagueBlock({ group, lang }: { group: LeagueGroup; lang: string }) {
 // ─── Page principale ──────────────────────────────────────
 export default function HockeyClient() {
   const { lang } = useT()
+  const searchParams  = useSearchParams()
+  const leagueFilter  = searchParams.get('league') // filtre venant de la sidebar
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [groups,  setGroups]  = useState<LeagueGroup[]>([])
   const [loading, setLoading] = useState(true)
@@ -286,8 +289,14 @@ export default function HockeyClient() {
 
   useEffect(() => { load(selectedDate) }, [selectedDate, load])
 
-  const totalMatches = groups.reduce((a, g) => a + g.matches.length, 0)
-  const hasLive = groups.some(g =>
+  // Filtrer par ligue si demandé depuis la sidebar
+  const displayGroups = useMemo(() =>
+    leagueFilter ? groups.filter(g => g.name === leagueFilter) : groups,
+    [groups, leagueFilter]
+  )
+
+  const totalMatches = displayGroups.reduce((a, g) => a + g.matches.length, 0)
+  const hasLive = displayGroups.some(g =>
     g.matches.some(m => LIVE_DESCRIPTIONS.includes(m.state.description))
   )
 
@@ -343,7 +352,7 @@ export default function HockeyClient() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {groups.map(g => <LeagueBlock key={g.id} group={g} lang={lang} />)}
+          {displayGroups.map(g => <LeagueBlock key={g.id} group={g} lang={lang} />)}
         </div>
       )}
     </div>

@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import DatePicker from './DatePicker'
 import { useT } from '@/lib/i18n'
+import { useSearchParams } from 'next/navigation'
 
 const BASE = 'https://www.thesportsdb.com/api/v1/json/139695'
 
@@ -256,6 +257,8 @@ export default function SportDayClient({
   sport: string; sportLabel: string; emoji: string
 }) {
   const { lang } = useT()
+  const searchParams  = useSearchParams()
+  const leagueFilter  = searchParams.get('league')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [groups, setGroups]             = useState<LeagueGroup[]>([])
   const [loading, setLoading]           = useState(true)
@@ -279,8 +282,14 @@ export default function SportDayClient({
     fetch_()
   }, [selectedDate, sport])
 
-  const totalMatches = groups.reduce(function(a, g) { return a + g.events.length }, 0)
-  const hasLive = groups.some(function(g) {
+  // Filtrer par ligue si demandé depuis la sidebar
+  const displayGroups = useMemo(() =>
+    leagueFilter ? groups.filter(function(g) { return g.name === leagueFilter }) : groups,
+    [groups, leagueFilter]
+  )
+
+  const totalMatches = displayGroups.reduce(function(a, g) { return a + g.events.length }, 0)
+  const hasLive = displayGroups.some(function(g) {
     return g.events.some(function(e) { return LIVE_STATUSES.includes(e.strStatus) })
   })
 
@@ -335,7 +344,7 @@ export default function SportDayClient({
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {groups.map(function(g) { return <LeagueBlock key={g.key} group={g} lang={lang} /> })}
+          {displayGroups.map(function(g) { return <LeagueBlock key={g.key} group={g} lang={lang} /> })}
         </div>
       )}
     </div>

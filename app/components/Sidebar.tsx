@@ -186,13 +186,204 @@ function Divider() {
   return <div style={{ height: "1px", background: "var(--border)", margin: "10px 4px" }} />
 }
 
-// ─── Sidebar principale ─────────────────────────────────────
-export default function Sidebar() {
-  const router   = useRouter()
-  const pathname = usePathname()
-  const { t, lang } = useT()
+// ─── Ligues fixes Hockey ────────────────────────────────────
+const HOCKEY_PHARES = [
+  { name: "NHL",         countryFr: "États-Unis",  countryEn: "USA",         logo: null },
+  { name: "AHL",         countryFr: "États-Unis",  countryEn: "USA",         logo: null },
+  { name: "KHL",         countryFr: "Russie",      countryEn: "Russia",      logo: null },
+  { name: "SHL",         countryFr: "Suède",       countryEn: "Sweden",      logo: null },
+  { name: "Liiga",       countryFr: "Finlande",    countryEn: "Finland",     logo: null },
+  { name: "DEL",         countryFr: "Allemagne",   countryEn: "Germany",     logo: null },
+  { name: "NLA",         countryFr: "Suisse",      countryEn: "Switzerland", logo: null },
+  { name: "PWHL Women",  countryFr: "États-Unis",  countryEn: "USA",         logo: null },
+]
+const HOCKEY_PHARES_NAMES = new Set(HOCKEY_PHARES.map(l => l.name))
 
-  const [othersOpen,    setOthersOpen]    = useState(false)
+// ─── Ligues fixes Basketball ─────────────────────────────────
+const BASKET_PHARES = [
+  { name: "NBA",                         countryFr: "États-Unis", countryEn: "USA",    logo: null },
+  { name: "EuroLeague Basketball",        countryFr: "Europe",     countryEn: "Europe", logo: null },
+  { name: "EuroCup",                      countryFr: "Europe",     countryEn: "Europe", logo: null },
+  { name: "French LNB",                   countryFr: "France",     countryEn: "France", logo: null },
+  { name: "Spanish ACB",                  countryFr: "Espagne",    countryEn: "Spain",  logo: null },
+  { name: "Italian Lega Basket",          countryFr: "Italie",     countryEn: "Italy",  logo: null },
+  { name: "Turkish Basketbol Super Ligi", countryFr: "Turquie",    countryEn: "Turkey", logo: null },
+  { name: "German BBL",                   countryFr: "Allemagne",  countryEn: "Germany",logo: null },
+  { name: "BNXT League",                  countryFr: "Bel/NL",     countryEn: "Bel/NL", logo: null },
+  { name: "WNBA",                         countryFr: "États-Unis", countryEn: "USA",    logo: null },
+]
+const BASKET_PHARES_NAMES = new Set(BASKET_PHARES.map(l => l.name))
+
+// ─── Sous-composant "Autres compétitions" générique ──────────
+function OthersSection({
+  items, lang, loading, loaded, activeLeague,
+  onSelect, labelFr = "Autres compétitions", labelEn = "Other competitions",
+}: {
+  items: LeagueItem[]; lang: string; loading: boolean; loaded: boolean
+  activeLeague: string | null; onSelect: (name: string) => void
+  labelFr?: string; labelEn?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const { t } = useT()
+  const label = lang === "fr" ? labelFr : labelEn
+
+  return (
+    <>
+      <button onClick={() => setOpen(!open)} style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        width: "100%", padding: "6px 8px", border: "none", borderRadius: "8px",
+        background: "transparent", cursor: "pointer", color: "var(--text-muted)",
+        fontSize: "9.5px", fontWeight: 700, letterSpacing: "0.1em",
+        textTransform: "uppercase", marginBottom: "4px",
+      }}>
+        <span>{label}{loaded ? ` (${items.length})` : ""}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && (loading
+        ? <div style={{ padding: "8px", fontSize: "12px", color: "var(--text-muted)" }}>{t("loading")}…</div>
+        : items.length === 0
+          ? <div style={{ padding: "8px", fontSize: "12px", color: "var(--text-muted)" }}>{t("no_matches")}</div>
+          : items.map(l => (
+              <LeagueBtn key={l.id} league={l} isActive={activeLeague === l.name}
+                onClick={() => onSelect(l.name)} />
+            ))
+      )}
+    </>
+  )
+}
+
+// ─── Sidebar Hockey ──────────────────────────────────────────
+function HockeySidebar({ lang, activeLeague, onSelect }: {
+  lang: string; activeLeague: string | null; onSelect: (name: string | null) => void
+}) {
+  const { t } = useT()
+  const [others, setOthers]       = useState<LeagueItem[]>([])
+  const [loading, setLoading]     = useState(false)
+  const [loaded, setLoaded]       = useState(false)
+  const [logoMap, setLogoMap]     = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      try {
+        const today = new Date().toISOString().split("T")[0]
+        const res = await fetch(`/api/hockey?date=${today}`)
+        if (!res.ok) return
+        const grouped: Record<string, any[]> = await res.json()
+        const logos: Record<string, string> = {}
+        const seen = new Map<string, LeagueItem>()
+        for (const matches of Object.values(grouped)) {
+          const first = matches[0]
+          if (!first) continue
+          const name = first.league?.name ?? ""
+          if (first.league?.logo) logos[name] = first.league.logo
+          if (!HOCKEY_PHARES_NAMES.has(name) && !seen.has(name)) {
+            seen.set(name, {
+              id:      name,
+              name,
+              country: first.country?.name ?? "",
+              logo:    first.league?.logo ?? null,
+            })
+          }
+        }
+        setLogoMap(logos)
+        setOthers([...seen.values()].sort((a, b) =>
+          a.country.localeCompare(b.country) || a.name.localeCompare(b.name)
+        ))
+      } catch {} finally { setLoading(false); setLoaded(true) }
+    }
+    load()
+  }, [])
+
+  const phares: LeagueItem[] = HOCKEY_PHARES.map(l => ({
+    id: l.name, name: l.name,
+    country: lang === "fr" ? l.countryFr : l.countryEn,
+    logo: logoMap[l.name] ?? null,
+  }))
+
+  return (
+    <>
+      <SectionLabel label={lang === "fr" ? "Ligues phares" : "Major Leagues"} />
+      {phares.map(l => (
+        <LeagueBtn key={l.name} league={l} isActive={activeLeague === l.name}
+          onClick={() => onSelect(activeLeague === l.name ? null : l.name)} />
+      ))}
+      <Divider />
+      <OthersSection items={others} lang={lang} loading={loading} loaded={loaded}
+        activeLeague={activeLeague} onSelect={(n) => onSelect(activeLeague === n ? null : n)} />
+    </>
+  )
+}
+
+// ─── Sidebar Basketball ──────────────────────────────────────
+function BasketballSidebar({ lang, activeLeague, onSelect }: {
+  lang: string; activeLeague: string | null; onSelect: (name: string | null) => void
+}) {
+  const { t } = useT()
+  const [others, setOthers]   = useState<LeagueItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loaded, setLoaded]   = useState(false)
+  const [logoMap, setLogoMap] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      try {
+        const today = new Date().toISOString().split("T")[0]
+        const res = await fetch(`https://www.thesportsdb.com/api/v1/json/139695/eventsday.php?d=${today}&s=Basketball`)
+        if (!res.ok) return
+        const data = await res.json()
+        const events: any[] = data.events ?? []
+        const logos: Record<string, string> = {}
+        const seen = new Map<string, LeagueItem>()
+        for (const ev of events) {
+          const name = ev.strLeague ?? ""
+          if (ev.strLeagueBadge) logos[name] = ev.strLeagueBadge
+          if (!BASKET_PHARES_NAMES.has(name) && !seen.has(name)) {
+            seen.set(name, {
+              id:      name,
+              name,
+              country: ev.strCountry ?? "",
+              logo:    ev.strLeagueBadge ?? null,
+            })
+          }
+        }
+        setLogoMap(logos)
+        setOthers([...seen.values()].sort((a, b) =>
+          a.country.localeCompare(b.country) || a.name.localeCompare(b.name)
+        ))
+      } catch {} finally { setLoading(false); setLoaded(true) }
+    }
+    load()
+  }, [])
+
+  const phares: LeagueItem[] = BASKET_PHARES.map(l => ({
+    id: l.name, name: l.name,
+    country: lang === "fr" ? l.countryFr : l.countryEn,
+    logo: logoMap[l.name] ?? null,
+  }))
+
+  return (
+    <>
+      <SectionLabel label={lang === "fr" ? "Ligues phares" : "Major Leagues"} />
+      {phares.map(l => (
+        <LeagueBtn key={l.name} league={l} isActive={activeLeague === l.name}
+          onClick={() => onSelect(activeLeague === l.name ? null : l.name)} />
+      ))}
+      <Divider />
+      <OthersSection items={others} lang={lang} loading={loading} loaded={loaded}
+        activeLeague={activeLeague} onSelect={(n) => onSelect(activeLeague === n ? null : n)} />
+    </>
+  )
+}
+
+// ─── Sidebar Football ────────────────────────────────────────
+function FootballSidebar({ lang, pathname }: { lang: string; pathname: string }) {
+  const router = useRouter()
   const [otherLeagues,  setOtherLeagues]  = useState<LeagueItem[]>([])
   const [loadingOthers, setLoadingOthers] = useState(false)
   const [loaded,        setLoaded]        = useState(false)
@@ -223,12 +414,7 @@ export default function Sidebar() {
             a.country.localeCompare(b.country) || a.name.localeCompare(b.name)
           )
         )
-      } catch (e) {
-        console.error("Sidebar others error:", e)
-      } finally {
-        setLoadingOthers(false)
-        setLoaded(true)
-      }
+      } catch {} finally { setLoadingOthers(false); setLoaded(true) }
     }
     loadOthers()
   }, [])
@@ -237,86 +423,75 @@ export default function Sidebar() {
   const goTo     = (id: string) => router.push(`/ligue/${id}`)
 
   const internationalItems: LeagueItem[] = INTERNATIONAL_LEAGUES.map(l => ({
-    id: l.id,
-    name:    lang === "fr" ? l.nameFr : l.nameEn,
-    country: lang === "fr" ? l.countryFr : l.countryEn,
-    logo: l.logo, darkBg: l.darkBg,
+    id: l.id, name: lang === "fr" ? l.nameFr : l.nameEn,
+    country: lang === "fr" ? l.countryFr : l.countryEn, logo: l.logo, darkBg: l.darkBg,
   }))
-
   const favoriteItems: LeagueItem[] = FAVORITE_LEAGUES.map(l => ({
-    id: l.id,
-    name:    lang === "fr" ? l.nameFr : l.nameEn,
-    country: lang === "fr" ? l.countryFr : l.countryEn,
-    logo: l.logo,
+    id: l.id, name: lang === "fr" ? l.nameFr : l.nameEn,
+    country: lang === "fr" ? l.countryFr : l.countryEn, logo: l.logo,
   }))
-
   const othersTranslated: LeagueItem[] = otherLeagues.map(l => ({
     ...l, country: translateCountry(l.country, lang),
   }))
 
   return (
-    <aside className="sidebar-desktop" style={{
-      width: "220px",
-      backgroundColor: "var(--bg-surface)",
-      borderRight: "1px solid var(--border)",
-      padding: "16px 8px 40px",
-      flexShrink: 0, overflowY: "auto",
-    }}>
-
-      {/* ── INTERNATIONALE ── */}
+    <>
       <SectionLabel label={lang === "fr" ? "Internationale" : "International"} />
       {internationalItems.map(l => (
         <LeagueBtn key={l.id} league={l} isActive={isActive(l.id)} onClick={() => goTo(l.id)} />
       ))}
-
       <Divider />
-
-      {/* ── LIGUES FAVORITES ── */}
       <SectionLabel label={lang === "fr" ? "Ligues favorites" : "Favorite Leagues"} />
       {favoriteItems.map(l => (
         <LeagueBtn key={l.id} league={l} isActive={isActive(l.id)} onClick={() => goTo(l.id)} />
       ))}
-
       <Divider />
+      <OthersSection
+        items={othersTranslated} lang={lang} loading={loadingOthers} loaded={loaded}
+        activeLeague={null} onSelect={(id) => goTo(id)}
+        labelFr="Autres compétitions" labelEn="Other competitions"
+      />
+    </>
+  )
+}
 
-      {/* ── AUTRES COMPÉTITIONS ── */}
-      <button
-        onClick={() => setOthersOpen(!othersOpen)}
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          width: "100%", padding: "6px 8px",
-          border: "none", borderRadius: "8px", background: "transparent",
-          cursor: "pointer", color: "var(--text-muted)",
-          fontSize: "9.5px", fontWeight: 700,
-          letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "4px",
-        }}
-      >
-        <span>
-          {lang === "fr" ? "Autres compétitions" : "Other competitions"}
-          {loaded && ` (${othersTranslated.length})`}
-        </span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth="2.5"
-          strokeLinecap="round" strokeLinejoin="round"
-          style={{ transform: othersOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
+// ─── Sidebar principale — dispatche selon le sport ───────────
+export default function Sidebar() {
+  const router   = useRouter()
+  const pathname = usePathname()
+  const { lang } = useT()
 
-      {othersOpen && (
-        loadingOthers
-          ? <div style={{ padding: "8px", fontSize: "12px", color: "var(--text-muted)" }}>
-              {t("loading")}…
-            </div>
-          : othersTranslated.length === 0
-            ? <div style={{ padding: "8px", fontSize: "12px", color: "var(--text-muted)" }}>
-                {t("no_matches")}
-              </div>
-            : othersTranslated.map(l => (
-                <LeagueBtn key={l.id} league={l} isActive={isActive(l.id)} onClick={() => goTo(l.id)} />
-              ))
-      )}
+  const [activeLeague, setActiveLeague] = useState<string | null>(null)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setActiveLeague(params.get("league"))
+  }, [pathname])
 
+  const isHockey     = pathname.startsWith("/hockey")
+  const isBasketball = pathname.startsWith("/basketball")
+
+  const selectLeague = (sport: string) => (name: string | null) => {
+    const url = name ? `/${sport}?league=${encodeURIComponent(name)}` : `/${sport}`
+    router.push(url)
+    setActiveLeague(name)
+  }
+
+  let content: React.ReactNode
+  if (isHockey) {
+    content = <HockeySidebar lang={lang} activeLeague={activeLeague} onSelect={selectLeague("hockey")} />
+  } else if (isBasketball) {
+    content = <BasketballSidebar lang={lang} activeLeague={activeLeague} onSelect={selectLeague("basketball")} />
+  } else {
+    content = <FootballSidebar lang={lang} pathname={pathname} />
+  }
+
+  return (
+    <aside className="sidebar-desktop" style={{
+      width: "220px", backgroundColor: "var(--bg-surface)",
+      borderRight: "1px solid var(--border)", padding: "16px 8px 40px",
+      flexShrink: 0, overflowY: "auto",
+    }}>
+      {content}
     </aside>
   )
 }
