@@ -559,27 +559,12 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Bandeau LIVE */}
-      {hasLive && !loading && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
-          borderRadius: '10px', padding: '8px 14px', marginBottom: '16px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444',
-              animation: 'livePulse 1.5s ease-in-out infinite',
-            }} />
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#ef4444' }}>
-              {t("live_matches")}
-            </span>
-          </div>
-          {lastRefresh && (
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              {t("updated_at")} {lastRefresh.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
+      {/* Timestamp de dernier refresh — discret, sans bandeau coloré */}
+      {hasLive && !loading && lastRefresh && (
+        <div style={{ textAlign: 'right', marginBottom: 8 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {t("updated_at")} {lastRefresh.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
+          </span>
         </div>
       )}
 
@@ -597,7 +582,7 @@ export default function HomePage() {
             <LeagueSection
               key={league}
               leagueName={league}
-              matches={matchesByLeague[league]}
+              matches={filteredMatchesByLeague[league]}
               lang={lang}
               goalFlashes={goalFlashes}
             />
