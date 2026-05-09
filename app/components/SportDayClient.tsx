@@ -5,6 +5,7 @@ import Link from 'next/link'
 import DatePicker from './DatePicker'
 import { useT } from '@/lib/i18n'
 import { useSearchParams } from 'next/navigation'
+import StandingsPanel from './StandingsPanel'
 
 const BASE = 'https://www.thesportsdb.com/api/v1/json/139695'
 
@@ -21,6 +22,7 @@ interface SportEvent {
   strTime: string
   dateEvent: string
   strLeague: string
+  idLeague: string | null
   strLeagueBadge: string | null
   strVenue: string | null
   strCountry: string | null
@@ -99,6 +101,7 @@ interface LeagueGroup {
   badge: string | null
   country: string
   flag: string
+  leagueId: string | null
   events: SportEvent[]
 }
 
@@ -112,7 +115,7 @@ function groupByLeague(events: SportEvent[]): LeagueGroup[] {
       const flag = override
         ? override.flag
         : (COUNTRY_FLAG[ev.strCountry ? ev.strCountry : ''] ? COUNTRY_FLAG[ev.strCountry ? ev.strCountry : ''] : '🏀')
-      map.set(key, { key, name: ev.strLeague, badge: ev.strLeagueBadge, country, flag, events: [] })
+      map.set(key, { key, name: ev.strLeague, badge: ev.strLeagueBadge, country, flag, leagueId: ev.idLeague ?? null, events: [] })
     }
     const group = map.get(key)
     if (group) group.events.push(ev)
@@ -134,9 +137,13 @@ function MatchRow({ ev, lang }: { ev: SportEvent; lang: string }) {
   const awayWin   = hasScore && awayScore! > homeScore!
   const statusInfo = getStatusLabel(ev.strStatus, lang)
 
-  const homeQ = parseQuarters(ev.strResult, ev.strHomeTeam)
-  const awayQ = parseQuarters(ev.strResult, ev.strAwayTeam)
-  const nQ    = Math.max(homeQ.length, awayQ.length)
+  const homeQRaw = parseQuarters(ev.strResult, ev.strHomeTeam)
+  const awayQRaw = parseQuarters(ev.strResult, ev.strAwayTeam)
+  const rawN = Math.max(homeQRaw.length, awayQRaw.length)
+  // Toujours 4 quarts-temps pour uniformité + OT si existant
+  const nQ = rawN > 0 ? Math.max(4, rawN) : 0
+  const homeQ = rawN > 0 ? Array.from({length: nQ}, (_, i) => homeQRaw[i] ?? '') : []
+  const awayQ = rawN > 0 ? Array.from({length: nQ}, (_, i) => awayQRaw[i] ?? '') : []
   const showQuarters = nQ > 0 && hasScore
 
   const isLiveMatch = statusInfo.isLive
@@ -244,7 +251,14 @@ function LeagueBlock({ group, lang }: { group: LeagueGroup; lang: string }) {
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {group.name}
         </span>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{group.country}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', flexShrink: 0 }}>{group.country}</span>
+        {group.leagueId && (
+          <StandingsPanel
+            leagueId={group.leagueId}
+            leagueName={group.name}
+            endpointUrl="/api/basketball-standings"
+          />
+        )}
       </div>
       {group.events.map(function(ev) { return <MatchRow key={ev.idEvent} ev={ev} lang={lang} /> })}
     </div>

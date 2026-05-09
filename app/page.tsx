@@ -58,7 +58,7 @@ function proxyLogo(url: string | null | undefined): string | null {
 
 // ─── Tri des ligues dans l'ordre sidebar ───────────────────
 // Ordre final : Internationale (ordre sidebar) → Favorites (ordre sidebar) → Autres (pays A→Z, ligue A→Z)
-function sortLeagues(grouped: Record<string, HMatch[]>): string[] {
+function sortLeagues(grouped: Record<string, HMatch[]>, lang = "fr"): string[] {
   const international: string[] = []   // tableau sparse positionné par index sidebar
   const favorites: string[]     = []   // tableau sparse positionné par index sidebar
   const others: string[]        = []
@@ -73,9 +73,10 @@ function sortLeagues(grouped: Record<string, HMatch[]>): string[] {
   }
 
   others.sort((a, b) => {
-    const cA = grouped[a]?.[0]?.country?.name ?? ""
-    const cB = grouped[b]?.[0]?.country?.name ?? ""
-    const cmp = cA.localeCompare(cB)
+    // Utiliser le nom traduit pour le tri → "États-Unis" avant "Uruguay" en français
+    const cA = _translateCountry(grouped[a]?.[0]?.country?.name ?? "", lang)
+    const cB = _translateCountry(grouped[b]?.[0]?.country?.name ?? "", lang)
+    const cmp = cA.localeCompare(cB, lang)
     if (cmp !== 0) return cmp
     return (grouped[a]?.[0]?.league?.name ?? "").localeCompare(grouped[b]?.[0]?.league?.name ?? "")
   })
@@ -376,9 +377,8 @@ function LeagueSection({ leagueName, matches, lang, goalFlashes }: {
             {displayName}
           </span>
 
-          {/* ✅ Pays en blanc en dark mode via CSS variable */}
           {countryName && (
-            <span style={{ fontSize: "11px", color: "var(--league-country)" }}>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--league-country)" }}>
               {countryName}
             </span>
           )}
@@ -489,7 +489,7 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [matchesByLeague, selectedDate, load])
 
-  const sortedLeagues = sortLeagues(filteredMatchesByLeague)
+  const sortedLeagues = sortLeagues(filteredMatchesByLeague, lang)
   const allMatches    = Object.values(matchesByLeague).flat()
   const hasLive = allMatches.some(m => LIVE_STATUSES.includes(normalizeStatus(m.state.description)))
   const dateLocale = lang === 'fr' ? 'fr-FR' : 'en-GB'
@@ -565,7 +565,12 @@ export default function HomePage() {
       ) : sortedLeagues.length === 0 ? (
         <div style={{ textAlign: "center", padding: "64px 0", color: "var(--text-muted)" }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>📅</div>
-          <p style={{ fontSize: 14 }}>{t("no_matches")}</p>
+          <p style={{ fontSize: 14 }}>
+            {activeTab === 'live'     ? (lang === 'fr' ? 'Aucun match en direct en ce moment' : 'No live matches right now') :
+             activeTab === 'finished' ? (lang === 'fr' ? 'Aucun match terminé pour cette date' : 'No finished matches for this date') :
+             activeTab === 'upcoming' ? (lang === 'fr' ? 'Aucun match à venir pour cette date' : 'No upcoming matches for this date') :
+             t("no_matches")}
+          </p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

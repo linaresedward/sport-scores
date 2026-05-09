@@ -73,9 +73,11 @@ interface LiveInfo { score: string; opponent: string; isHome: boolean; clock: nu
 export default function StandingsPanel({
   leagueId,
   leagueName,
+  endpointUrl = "/api/standings",
 }: {
   leagueId: string;
   leagueName: string;
+  endpointUrl?: string;
 }) {
   const [open, setOpen]           = useState(false);
   const [standings, setStandings] = useState<Standing[]>([]);
@@ -90,7 +92,7 @@ export default function StandingsPanel({
     const today = new Date().toISOString().split("T")[0];
 
     Promise.all([
-      fetch(`/api/standings?leagueId=${leagueId}`).then(r => r.json()),
+      fetch(`${endpointUrl}?leagueId=${leagueId}`).then(r => r.json()),
       fetch(`/api/matches?date=${today}`).then(r => r.json()),
     ]).then(([standData, matchData]) => {
       setStandings(standData.groups?.[0]?.standings ?? []);
