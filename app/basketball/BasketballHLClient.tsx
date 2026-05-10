@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import DatePicker from '@/app/components/DatePicker'
 import BasketStandingsModal from '@/app/components/BasketStandingsModal'
@@ -98,12 +99,11 @@ function MatchRow({ match, lang }: { match: BMatch; lang: string }) {
   const showQ = hasScore && (q1h || q2h || q3h || q4h)
 
   return (
-    <div className="bk-row" style={{
-      display: 'flex', alignItems: 'stretch', minHeight: 56,
+    <Link href={`/basketball/match/${match.id}`} className="bk-row" style={{
+      display: 'flex', alignItems: 'stretch', minHeight: 56, textDecoration: 'none',
       borderBottom: '1px solid var(--border)',
       background: isLive ? 'rgba(239,68,68,0.04)' : 'var(--bg-surface)',
       borderLeft: isLive ? '3px solid #ef4444' : '3px solid transparent',
-      cursor: 'default',
     }}>
       {/* Statut */}
       <div style={{ width: 60, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' }}>
@@ -162,7 +162,7 @@ function MatchRow({ match, lang }: { match: BMatch; lang: string }) {
           </div>
         </div>
       )}
-    </div>
+    </Link>
   )
 }
 

@@ -27,6 +27,14 @@ interface PlayoffSeries {
 }
 
 const STANDINGS_COLS = "22px 1fr 30px 28px 28px 28px 28px 52px 34px"
+
+// Top 8 par conférence → playoffs (bleu)
+function getZoneNHL(pos: number, groupName: string): { bg: string; border: string } | null {
+  const isConf = groupName.includes("Conference")
+  if (!isConf) return null
+  if (pos <= 8) return { bg: "rgba(59,130,246,0.06)", border: "#3b82f6" }
+  return null
+}
 const SPORTSDB_NHL  = "4380"
 const SPORTSDB_KEY  = "139695"
 
@@ -80,7 +88,7 @@ function RegularSeasonView({ leagueId }: { leagueId: string }) {
         const regW = row.wins - row.winsOvertime
         const regL = row.loses - row.losesOvertime
         return (
-          <div key={row.team.id} style={{display:"grid",gridTemplateColumns:STANDINGS_COLS,padding:"7px 16px",alignItems:"center",borderBottom:"1px solid #f8fafc",background:"#fff"}}>
+          <div key={row.team.id} style={{display:"grid",gridTemplateColumns:STANDINGS_COLS,padding:"7px 16px",alignItems:"center",borderBottom:"1px solid #f8fafc",background:getZoneNHL(row.position, g?.name??"")?.bg??"#fff",borderLeft:`3px solid ${getZoneNHL(row.position, g?.name??"")?.border??"transparent"}`}}>
             <span style={{fontSize:11,color:"#64748b",fontWeight:600}}>{row.position}</span>
             <div style={{display:"flex",alignItems:"center",gap:7,overflow:"hidden"}}>
               <img src={proxyLogo(row.team.logo)} alt={row.team.name} width={16} height={16} style={{objectFit:"contain",flexShrink:0}}/>
@@ -96,8 +104,14 @@ function RegularSeasonView({ leagueId }: { leagueId: string }) {
           </div>
         )
       })}
-      {/* Légende */}
-      <div style={{padding:"12px 16px",borderTop:"1px solid #f1f5f9",display:"flex",gap:16,flexWrap:"wrap"}}>
+      {/* Légende zones + colonnes */}
+      <div style={{padding:"12px 16px",borderTop:"1px solid #f1f5f9",display:"flex",gap:12,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:5}}>
+          <div style={{width:10,height:10,borderRadius:"50%",background:"#3b82f6"}}/>
+          <span style={{fontSize:10,color:"#64748b"}}>Qualifié playoffs (top 8/conférence)</span>
+        </div>
+      </div>
+      <div style={{padding:"8px 16px",borderTop:"1px solid #f1f5f9",display:"flex",gap:16,flexWrap:"wrap"}}>
         {[{color:"#22c55e",label:"VP — Victoire en prolongation"},{color:"#f59e0b",label:"DP — Défaite en prolongation"}].map(item => (
           <div key={item.label} style={{display:"flex",alignItems:"center",gap:5}}>
             <div style={{width:10,height:10,borderRadius:"50%",background:item.color}}/>

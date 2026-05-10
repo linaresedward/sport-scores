@@ -142,12 +142,12 @@ function MatchRow({ match, lang }: { match: HockeyMatch; lang: string }) {
   const showPen = !!(pnh || pna)
 
   return (
-    <div className="hk-row" style={{
-      display: 'flex', alignItems: 'stretch',
+    <Link href={`/hockey/match/${match.id}`} className="hk-row" style={{
+      display: 'flex', alignItems: 'stretch', textDecoration: 'none',
       borderBottom: '1px solid var(--border)',
       background: isLive ? 'rgba(239,68,68,0.04)' : 'var(--bg-surface)',
       borderLeft: isLive ? '3px solid #ef4444' : '3px solid transparent',
-      minHeight: 56, cursor: 'default',
+      minHeight: 56,
     }}>
       {/* Statut */}
       <div style={{ width: 60, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' }}>
@@ -213,7 +213,7 @@ function MatchRow({ match, lang }: { match: HockeyMatch; lang: string }) {
         </div>
       )}
 
-    </div>
+    </Link>
   )
 }
 
