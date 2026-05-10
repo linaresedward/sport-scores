@@ -134,7 +134,7 @@ export default function MobileMenu() {
         <div className="mobile-menu-overlay">
           <div className="mobile-menu-header">
             <div className="topbar__logo">
-              <div className="topbar__logo-dot" />
+              <img src="/nyxscores-icon.png" alt="NyxScores" width={28} height={28} style={{ borderRadius: "6px", objectFit: "contain" }} />
               <span>NyxScores</span>
             </div>
             <button onClick={() => setOpen(false)} className="mobile-menu-close" aria-label="Fermer">

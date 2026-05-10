@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import DatePicker from '@/app/components/DatePicker'
-import StandingsPanel from '@/app/components/StandingsPanel'
+import HockeyStandingsModal from '@/app/components/HockeyStandingsModal'
 import { useT } from '@/lib/i18n'
 import { translateCountry } from '@/lib/labels'
 
@@ -238,11 +238,7 @@ function LeagueBlock({ group, lang }: { group: LeagueGroup; lang: string }) {
             {translateCountry(group.country, lang)}
           </span>
         )}
-        <StandingsPanel
-          leagueId={group.id}
-          leagueName={group.name}
-          endpointUrl="/api/hockey-standings"
-        />
+        <HockeyStandingsModal leagueId={group.id} leagueName={group.name} />
       </div>
       {group.matches.map(m => <MatchRow key={m.id} match={m} lang={lang} />)}
     </div>

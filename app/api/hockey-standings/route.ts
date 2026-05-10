@@ -4,6 +4,17 @@ const BASE    = "https://sports.highlightly.net/hockey"
 const KEY     = process.env.HIGHLIGHTLY_KEY ?? ""
 const HEADERS = { "x-rapidapi-key": KEY, "x-rapidapi-host": "sports.highlightly.net" }
 
+// Mapping nom ligue → ID Highlightly hockey (pour faciliter les recherches par nom)
+export const HOCKEY_LEAGUE_IDS: Record<string, string> = {
+  "NHL":        "49291",
+  "AHL":        "50142",
+  "ECHL":       "50993",
+  "OHL":        "3337",
+  "PWHL Women": "222895",
+  "VHL":        "31420",
+  "MHL":        "32271",
+}
+
 const cache = new Map<string, { data: any; ts: number }>()
 
 export async function GET(req: NextRequest) {
@@ -19,28 +30,28 @@ export async function GET(req: NextRequest) {
       { headers: HEADERS, next: { revalidate: 3600 } }
     )
     if (!res.ok) return NextResponse.json({ groups: [] })
-    const data = await res.json()
-    if (!data.groups?.length) return NextResponse.json({ groups: [] })
+    const raw = await res.json()
+    if (!raw.groups?.length) return NextResponse.json({ groups: [] })
 
-    // Normaliser chaque standing pour StandingsPanel
-    for (const group of data.groups) {
-      for (const row of group.standings ?? []) {
-        row.intRank          = String(row.position ?? "")
-        row.strTeam          = row.team?.name ?? ""
-        row.strBadge         = row.team?.logo ? `/api/logo?url=${encodeURIComponent(row.team.logo)}` : ""
-        row.intPlayed        = String(row.total?.games ?? "")
-        row.intWin           = String(row.total?.wins ?? "")
-        row.intLoss          = String(row.total?.loses ?? "")
-        row.intDraw          = String(row.total?.draws ?? "")
-        row.intPoints        = String(row.points ?? "")
-        row.intGoalDifference= String((row.total?.scoredGoals ?? 0) - (row.total?.receivedGoals ?? 0))
-        row.intGoalsFor      = String(row.total?.scoredGoals ?? "")
-        row.intGoalsAgainst  = String(row.total?.receivedGoals ?? "")
-        row.strForm          = row.strForm ?? ""
-        row.strDescription   = row.description ?? ""
-      }
-    }
+    // Normaliser les groupes pour le HockeyStandingsModal
+    const groups = raw.groups.map((g: any) => ({
+      name: g.name,
+      standings: (g.standings ?? []).map((row: any) => ({
+        position:      row.position,
+        team:          row.team,
+        gamesPlayed:   row.gamesPlayed ?? 0,
+        wins:          row.wins ?? 0,           // total wins (includes OT)
+        winsOvertime:  row.winsOvertime ?? 0,   // VP — victoires en prolongation
+        losesOvertime: row.losesOvertime ?? 0,  // DP — défaites en prolongation
+        loses:         row.loses ?? 0,          // total losses (includes OT)
+        scoredGoals:   row.scoredGoals ?? 0,
+        receivedGoals: row.receivedGoals ?? 0,
+        // Points NHL : wins×2 + losesOvertime×1
+        points: (row.wins ?? 0) * 2 + (row.losesOvertime ?? 0),
+      })),
+    }))
 
+    const data = { groups, leagueName: raw.league?.name ?? "" }
     cache.set(leagueId, { data, ts: Date.now() })
     return NextResponse.json(data)
   } catch {

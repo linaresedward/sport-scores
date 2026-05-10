@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import SearchBar from "./SearchBar";
 import LangToggle from "./LangToggle";
@@ -31,7 +32,13 @@ export default function Topbar() {
 
       {/* Logo */}
       <Link href="/" className="topbar__logo">
-        <div className="topbar__logo-dot" />
+        <Image
+          src="/nyxscores-icon.png"
+          alt="NyxScores"
+          width={28}
+          height={28}
+          style={{ borderRadius: "6px", objectFit: "contain" }}
+        />
         <span>NyxScores</span>
       </Link>
 
