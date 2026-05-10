@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
   if (!date) return NextResponse.json({}, { status: 400 })
 
   const grouped: Record<string, any[]> = {}
-  const seenIds = new Set<number>()
+  // Déduplique par (leagueId-homeTeamId-awayTeamId) : Highlightly crée parfois
+  // deux entrées pour le même match avec des IDs différents
+  const seenMatchKeys = new Set<string>()
 
   try {
     let offset = 0
@@ -26,8 +28,10 @@ export async function GET(req: NextRequest) {
       const matches = data.data ?? []
 
       for (const m of matches) {
-        if (seenIds.has(m.id)) continue // déduplique les matchs identiques
-        seenIds.add(m.id)
+        // Clé unique : ligue + équipe dom + équipe ext
+        const matchKey = `${m.league?.id}-${m.homeTeam?.id}-${m.awayTeam?.id}`
+        if (seenMatchKeys.has(matchKey)) continue
+        seenMatchKeys.add(matchKey)
         const key = String(m.league?.id ?? "unknown")
         if (!grouped[key]) grouped[key] = []
         grouped[key].push(m)
