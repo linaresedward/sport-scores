@@ -19,16 +19,19 @@ export async function GET(req: NextRequest) {
   try {
     let offset = 0
     while (offset < 1000) {
-      const res = await fetch(
+      const res: Response = await fetch(
         `${BASE}/matches?date=${date}&timezone=UTC&limit=100&offset=${offset}`,
         { headers: HEADERS, cache: "no-store" }
       )
       if (!res.ok) break
-      const data    = await res.json()
-      const matches = data.data ?? []
+      const data: any    = await res.json()
+      const matches: any[] = data.data ?? []
 
       for (const m of matches) {
-        // Clé unique : ligue + équipe dom + équipe ext
+        // Filtrer par date exacte — Highlightly retourne parfois des matchs d'autres jours
+        const matchDate: string = (m.date ?? "").split("T")[0]
+        if (matchDate !== date) continue
+
         const matchKey = `${m.league?.id}-${m.homeTeam?.id}-${m.awayTeam?.id}`
         if (seenMatchKeys.has(matchKey)) continue
         seenMatchKeys.add(matchKey)

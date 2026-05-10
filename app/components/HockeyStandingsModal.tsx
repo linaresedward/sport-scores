@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { HorizontalBracket, BracketRound, BracketSeries } from "./PlayoffBracket";
 
 // ─── Types ────────────────────────────────────────────────
 interface HockeyRow {
@@ -123,97 +124,82 @@ function RegularSeasonView({ leagueId }: { leagueId: string }) {
   )
 }
 
-// ─── Phase Finale (playoffs) ───────────────────────────────
+// ─── Phase Finale NHL — bracket horizontal ─────────────────
+// Dates NHL playoffs 2025-2026
+const NHL_R1_START = "2026-04-18"
+const NHL_R2_START = "2026-05-01"
+const NHL_SF_START = "2026-05-16"
+const NHL_FIN_START= "2026-05-30"
+
+function getNHLRound(firstGame: string): string {
+  if (firstGame >= NHL_FIN_START) return "Finale Stanley Cup"
+  if (firstGame >= NHL_SF_START)  return "Demi-finales"
+  if (firstGame >= NHL_R2_START)  return "Quarts de finale"
+  if (firstGame >= NHL_R1_START)  return "1/8 de finale"
+  return "Qualifications"
+}
+
 function PlayoffView({ leagueId }: { leagueId: string }) {
-  const [series, setSeries] = useState<PlayoffSeries[]>([])
+  const [rounds, setRounds]   = useState<BracketRound[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Only fetch NHL playoff data for NHL (leagueId=49291)
     const sdbLeague = leagueId === "49291" ? SPORTSDB_NHL : null
     if (!sdbLeague) { setLoading(false); return }
 
     Promise.all([
-      fetch(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventspastleague.php?id=${sdbLeague}`).then(r=>r.json()),
-      fetch(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsnextleague.php?id=${sdbLeague}`).then(r=>r.json()),
+      fetch(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventspastleague.php?id=${sdbLeague}`).then(r => r.json()),
+      fetch(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsnextleague.php?id=${sdbLeague}`).then(r => r.json()),
     ]).then(([past, next]) => {
       const allEvents: PlayoffEvent[] = [...(past.events||[]), ...(next.events||[])]
-      // Grouper par série (normaliser l'ordre des équipes alphabétiquement)
-      const seriesMap = new Map<string, PlayoffSeries>()
+
+      // Grouper par paire d'équipes
+      const seriesMap = new Map<string, { s: BracketSeries; firstDate: string }>()
       allEvents.forEach(ev => {
         const [tA, tB] = [ev.strHomeTeam, ev.strAwayTeam].sort()
-        const key = tA + '|' + tB
+        const key = tA + "|" + tB
         if (!seriesMap.has(key)) {
-          seriesMap.set(key, { teamA: tA, teamB: tB, badgeA: "", badgeB: "", winsA: 0, winsB: 0, games: [] })
+          seriesMap.set(key, {
+            s: { teamA: tA, teamB: tB, badgeA: "", badgeB: "", winsA: 0, winsB: 0, games: 0, done: false },
+            firstDate: ev.dateEvent,
+          })
         }
-        const s = seriesMap.get(key)!
-        s.games.push(ev)
-        if (!s.badgeA && ev.strHomeTeam === tA) s.badgeA = ev.strHomeTeamBadge
-        if (!s.badgeB && ev.strHomeTeam === tB) s.badgeA = ev.strAwayTeamBadge
-        if (!s.badgeA && ev.strAwayTeam === tA) s.badgeA = ev.strAwayTeamBadge
-        if (!s.badgeB && ev.strAwayTeam === tB) s.badgeB = ev.strHomeTeamBadge
-        // Calculer les victoires
+        const entry = seriesMap.get(key)!
+        const s = entry.s
+        s.games++
+        if (ev.dateEvent < entry.firstDate) entry.firstDate = ev.dateEvent
+        if (!s.badgeA) { s.badgeA = ev.strHomeTeam === tA ? ev.strHomeTeamBadge : ev.strAwayTeamBadge }
+        if (!s.badgeB) { s.badgeB = ev.strHomeTeam === tB ? ev.strHomeTeamBadge : ev.strAwayTeamBadge }
         if (ev.intHomeScore !== null && ev.intAwayScore !== null) {
           const hWin = parseInt(ev.intHomeScore) > parseInt(ev.intAwayScore)
-          if (hWin) {
-            if (ev.strHomeTeam === tA) s.winsA++; else s.winsB++
-          } else {
-            if (ev.strAwayTeam === tA) s.winsA++; else s.winsB++
-          }
+          if (hWin) { if (ev.strHomeTeam === tA) s.winsA++; else s.winsB++ }
+          else       { if (ev.strAwayTeam === tA) s.winsA++; else s.winsB++ }
         }
+        if (s.winsA >= 4 || s.winsB >= 4) s.done = true
       })
-      setSeries([...seriesMap.values()].sort((a,b) => (b.winsA+b.winsB) - (a.winsA+a.winsB)))
+
+      // Filtrer séries playoffs réelles (>= 2 jeux depuis le 1er round)
+      const roundsMap = new Map<string, BracketSeries[]>()
+      const ROUND_ORDER = ["1/8 de finale","Quarts de finale","Demi-finales","Finale Stanley Cup"]
+      ROUND_ORDER.forEach(r => roundsMap.set(r, []))
+
+      seriesMap.forEach(({ s, firstDate }) => {
+        if (s.games < 2 || firstDate < NHL_R1_START) return
+        const round = getNHLRound(firstDate)
+        roundsMap.get(round)?.push(s)
+      })
+
+      const result: BracketRound[] = ROUND_ORDER
+        .map(name => ({ name, series: (roundsMap.get(name) ?? []).sort((a,b) => b.winsA + b.winsB - a.winsA - a.winsB) }))
+        .filter(r => r.series.length > 0)
+
+      setRounds(result)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [leagueId])
 
-  if (loading) return <div style={{padding:48,textAlign:"center",color:"#94a3b8"}}>Chargement...</div>
-  if (!series.length) return <div style={{padding:48,textAlign:"center",color:"#94a3b8"}}>Données des playoffs non disponibles.</div>
-
-  return (
-    <div style={{padding:"12px 0"}}>
-      <div style={{padding:"4px 16px 12px",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:".08em",textTransform:"uppercase"}}>Séries en cours</div>
-      {series.map((s, i) => {
-        const leading = s.winsA > s.winsB ? s.teamA : s.winsB > s.winsA ? s.teamB : null
-        return (
-          <div key={i} style={{margin:"0 16px 12px",border:"1px solid #f1f5f9",borderRadius:10,overflow:"hidden"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",alignItems:"center",padding:"10px 16px",background:"#f8fafc",gap:8}}>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                {s.badgeA && <img src={s.badgeA} width={22} height={22} style={{objectFit:"contain"}} alt=""/>}
-                <span style={{fontSize:12,fontWeight:s.winsA>s.winsB?700:400,color:s.winsA>s.winsB?"#0f172a":"#475569"}}>{s.teamA}</span>
-              </div>
-              <div style={{textAlign:"center"}}>
-                <span style={{fontSize:20,fontWeight:800,color:"#0f172a"}}>{s.winsA}</span>
-                <span style={{fontSize:16,color:"#94a3b8",margin:"0 4px"}}>–</span>
-                <span style={{fontSize:20,fontWeight:800,color:"#0f172a"}}>{s.winsB}</span>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"flex-end"}}>
-                <span style={{fontSize:12,fontWeight:s.winsB>s.winsA?700:400,color:s.winsB>s.winsA?"#0f172a":"#475569",textAlign:"right"}}>{s.teamB}</span>
-                {s.badgeB && <img src={s.badgeB} width={22} height={22} style={{objectFit:"contain"}} alt=""/>}
-              </div>
-            </div>
-            {/* Derniers matchs joués */}
-            {s.games.filter(g=>g.intHomeScore!==null).slice(-3).map((g, gi) => {
-              const hScore = parseInt(g.intHomeScore??'0'); const aScore = parseInt(g.intAwayScore??'0')
-              return (
-                <div key={gi} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 16px",borderTop:"1px solid #f1f5f9",fontSize:11,color:"#64748b"}}>
-                  <span style={{color:"#94a3b8"}}>{g.dateEvent}</span>
-                  <span>{g.strHomeTeam} <b style={{color:"#0f172a"}}>{g.intHomeScore}</b> – <b style={{color:"#0f172a"}}>{g.intAwayScore}</b> {g.strAwayTeam}</span>
-                </div>
-              )
-            })}
-            {/* Prochains matchs */}
-            {s.games.filter(g=>g.intHomeScore===null).slice(0,2).map((g, gi) => (
-              <div key={gi} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 16px",borderTop:"1px solid #f1f5f9",fontSize:11,color:"#2563eb",background:"rgba(37,99,235,0.03)"}}>
-                <span style={{color:"#94a3b8"}}>{g.dateEvent}</span>
-                <span>{g.strHomeTeam} vs {g.strAwayTeam}</span>
-              </div>
-            ))}
-          </div>
-        )
-      })}
-    </div>
-  )
+  if (loading) return <div style={{ padding: 48, textAlign: "center", color: "#94a3b8" }}>Chargement...</div>
+  return <HorizontalBracket rounds={rounds} emptyMsg="Données des playoffs NHL non disponibles." />
 }
 
 // ─── Modal principal ───────────────────────────────────────
