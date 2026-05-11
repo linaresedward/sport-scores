@@ -48,10 +48,12 @@ export async function GET() {
     const json = await res.json()
     const allGames: any[] = json[Object.keys(json)[0]] ?? []
 
-    // Exclure les jeux du play-in (intRound 26, 400...) — garder seulement les vrais playoffs
-    const playoffGames = allGames.filter(g =>
-      g.dateEvent >= ROUND1_START && parseInt(g.intRound ?? '0') <= 1
-    )
+    // Exclure uniquement les jeux play-in (intRound 26 et 400) — les autres sont des playoffs
+    const PLAYIN_ROUNDS = new Set([26, 400])
+    const playoffGames = allGames.filter(g => {
+      const round = parseInt(g.intRound ?? '0')
+      return g.dateEvent >= ROUND1_START && !PLAYIN_ROUNDS.has(round)
+    })
 
     // Grouper par paire d'équipes
     const seriesMap = new Map<string, Series>()
@@ -85,7 +87,7 @@ export async function GET() {
     ROUND_ORDER.forEach(r => roundsMap.set(r, []))
 
     seriesMap.forEach(s => {
-      if (s.games < 1) return
+      if (s.games < 2) return
       const round = getRound(s.startDate)
       roundsMap.get(round)?.push(s)
     })

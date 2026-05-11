@@ -13,7 +13,6 @@ export interface PlayoffRound {
   series: PlayoffSeries[]
 }
 
-// Rounds conférence à toujours afficher (slots vides si données absentes)
 const CONF_ROUNDS = ["1/8 de finale", "Quarts de finale", "Demi-finales"] as const
 
 const ROUND_SIZE: Record<string, number> = {
@@ -28,7 +27,8 @@ const ROUND_LABEL: Record<string, string> = {
   "Demi-finales":     "FINALE DE CONFÉRENCE",
 }
 
-const PAIR_GAP = 14
+// Gap interne entre paires — DOIT être < séparateur inter-conférence (2px visible + 20px)
+const PAIR_GAP = 6
 
 function proxyLogo(url: string | null | undefined) {
   if (!url) return null
@@ -41,6 +41,7 @@ function SeriesCard({ s }: { s: PlayoffSeries }) {
   const logoB = proxyLogo(s.badgeB)
   const aWins = s.done && s.winsA >= 4
   const bWins = s.done && s.winsB >= 4
+  // Série en cours UNIQUEMENT si non terminée ET au moins un match joué
   const inProgress = !s.done && s.games > 0
 
   return (
@@ -88,20 +89,8 @@ function EmptySlot() {
   )
 }
 
-function RoundLabel({ text, color = "#475569" }: { text: string; color?: string }) {
-  return (
-    <div style={{ textAlign: "center", padding: "12px 0 8px" }}>
-      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: ".14em", color, textTransform: "uppercase" }}>
-        {text}
-      </span>
-    </div>
-  )
-}
-
-// ─── Algorithme d'appariement bracket ──────────────────────────────────────
-// Pour chaque série du round suivant (nextRound), trouve les 2 séries du round précédent
-// dont les équipes viennent, et les regroupe en paire.
-// Les séries orphelines (non encore matchées) sont groupées par 2 en fin de liste.
+// Algorithme d'appariement : retrouve les 2 séries du round précédent dont les vainqueurs
+// se retrouvent en duel dans le round suivant.
 function buildPairs(
   prevRound: PlayoffSeries[],
   nextRound: PlayoffSeries[]
@@ -117,25 +106,16 @@ function buildPairs(
     if (prevB) usedKeys.add(`${prevB.teamA}|${prevB.teamB}`)
   }
 
-  // Séries non encore rattachées à un prochain round (futur) → paires par ordre d'arrivée
   const remaining = prevRound.filter(p => !usedKeys.has(`${p.teamA}|${p.teamB}`))
   for (let i = 0; i < remaining.length; i += 2) {
     pairs.push([remaining[i] ?? null, remaining[i + 1] ?? null])
   }
 
-  // Garantir au minimum le nombre de paires attendu (slots vides)
-  const maxPairs = Math.ceil((ROUND_SIZE[prevRound[0]?.conference ? '' : ''] || prevRound.length || 4) / 2)
-  while (pairs.length < 2 && prevRound.length === 0) pairs.push([null, null])
-
   return pairs
 }
 
-// ─── Affichage d'une conférence pour un round ──────────────────────────────
-function ConfHalf({
-  series,
-  roundName,
-  nextSeries,
-}: {
+// Contenu d'une conférence pour un round (séries groupées par paires)
+function ConfContent({ series, roundName, nextSeries }: {
   series: PlayoffSeries[]
   roundName: string
   nextSeries: PlayoffSeries[]
@@ -143,12 +123,10 @@ function ConfHalf({
   const maxCount = ROUND_SIZE[roundName] ?? 1
 
   if (maxCount === 4) {
-    // 4 séries → 2 paires dont les vainqueurs se retrouveront en 1/2 finale
     const pairs = buildPairs(series, nextSeries)
-    // S'assurer d'avoir exactement 2 paires
     while (pairs.length < 2) pairs.push([null, null])
     return (
-      <div style={{ flex: 1, display: "flex", gap: PAIR_GAP }}>
+      <div style={{ display: "flex", gap: PAIR_GAP }}>
         {pairs.slice(0, 2).map(([a, b], pi) => (
           <div key={pi} style={{ flex: 1, display: "flex", gap: 4 }}>
             <div style={{ flex: 1 }}>{a ? <SeriesCard s={a} /> : <EmptySlot />}</div>
@@ -160,20 +138,19 @@ function ConfHalf({
   }
 
   if (maxCount === 2) {
-    // 2 séries → appairées selon la finale de conférence
     const pairs = buildPairs(series, nextSeries)
     const pair = pairs[0] ?? [null, null]
     return (
-      <div style={{ flex: 1, display: "flex", gap: PAIR_GAP }}>
+      <div style={{ display: "flex", gap: PAIR_GAP }}>
         <div style={{ flex: 1 }}>{pair[0] ? <SeriesCard s={pair[0]} /> : <EmptySlot />}</div>
         <div style={{ flex: 1 }}>{pair[1] ? <SeriesCard s={pair[1]} /> : <EmptySlot />}</div>
       </div>
     )
   }
 
-  // maxCount === 1 : Finale de Conférence — centrée dans la moitié
+  // 1 série : Finale de Conférence — centrée
   return (
-    <div style={{ flex: 1, display: "flex", padding: "0 22%" }}>
+    <div style={{ display: "flex", padding: "0 22%" }}>
       <div style={{ flex: 1 }}>{series[0] ? <SeriesCard s={series[0]} /> : <EmptySlot />}</div>
     </div>
   )
@@ -189,16 +166,9 @@ export default function VerticalPlayoffBracket({
   emptyMsg?: string
 }) {
   const roundMap = new Map(rounds.map(r => [r.name, r]))
-
-  const allConfRounds = CONF_ROUNDS.map(name => ({
-    name,
-    east: (roundMap.get(name)?.series ?? []).filter(s => s.conference === 'East'),
-    west: (roundMap.get(name)?.series ?? []).filter(s => s.conference === 'West'),
-  }))
-
   const finalsRound = rounds.find(r => r.series.some(s => s.conference === 'Finals'))
-
   const hasAnyData = rounds.some(r => r.series.length > 0)
+
   if (!hasAnyData) {
     return (
       <div style={{ padding: "48px 16px", textAlign: "center", color: "#64748b", background: "#0f1117" }}>
@@ -209,57 +179,95 @@ export default function VerticalPlayoffBracket({
 
   return (
     <div style={{ background: "#0f1117", overflowX: "auto" }}>
-      <div style={{ minWidth: 800, padding: "14px 12px 24px" }}>
+      {/*
+        Grille CSS à 3 colonnes : [EST (1fr)] [séparateur 2px] [OUEST (1fr)]
+        TOUTES les lignes utilisent cette même grille → alignement garanti.
+      */}
+      <div style={{
+        minWidth: 800,
+        padding: "14px 12px 24px",
+        display: "grid",
+        gridTemplateColumns: "1fr 2px 1fr",
+        columnGap: 0,
+        rowGap: 0,
+      }}>
 
-        {/* ── Bandeaux de conférence ── */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 2 }}>
-          <div style={{
-            flex: 1, textAlign: "center", padding: "6px 8px", borderRadius: 7,
-            border: "1px solid rgba(59,130,246,0.35)", background: "rgba(59,130,246,0.1)",
-          }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#3b82f6", letterSpacing: ".09em" }}>
-              CONFÉRENCE EST
-            </span>
-          </div>
-          <div style={{
-            flex: 1, textAlign: "center", padding: "6px 8px", borderRadius: 7,
-            border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.1)",
-          }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#ef4444", letterSpacing: ".09em" }}>
-              CONFÉRENCE OUEST
-            </span>
-          </div>
+        {/* ── Ligne 1 : Bandeaux de conférence ── */}
+        <div style={{
+          padding: "6px 8px", borderRadius: "7px 0 0 7px",
+          border: "1px solid rgba(59,130,246,0.35)", borderRight: "none",
+          background: "rgba(59,130,246,0.1)", textAlign: "center",
+          marginBottom: 4,
+        }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: "#3b82f6", letterSpacing: ".09em" }}>
+            CONFÉRENCE EST
+          </span>
+        </div>
+        {/* Séparateur vertical — s'étend sur toutes les lignes */}
+        <div style={{
+          gridRow: "1 / span 100",
+          background: "rgba(255,255,255,0.1)",
+          margin: "0 8px",
+        }} />
+        <div style={{
+          padding: "6px 8px", borderRadius: "0 7px 7px 0",
+          border: "1px solid rgba(239,68,68,0.35)", borderLeft: "none",
+          background: "rgba(239,68,68,0.1)", textAlign: "center",
+          marginBottom: 4,
+        }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: "#ef4444", letterSpacing: ".09em" }}>
+            CONFÉRENCE OUEST
+          </span>
         </div>
 
         {/* ── Rounds de conférence ── */}
-        {allConfRounds.map((round, ri) => {
-          // Séries du round suivant (pour le calcul des paires)
+        {CONF_ROUNDS.map((roundName, ri) => {
+          const eastSeries = (roundMap.get(roundName)?.series ?? []).filter(s => s.conference === 'East')
+          const westSeries = (roundMap.get(roundName)?.series ?? []).filter(s => s.conference === 'West')
           const nextRoundName = CONF_ROUNDS[ri + 1]
           const nextEast = nextRoundName ? (roundMap.get(nextRoundName)?.series ?? []).filter(s => s.conference === 'East') : []
           const nextWest = nextRoundName ? (roundMap.get(nextRoundName)?.series ?? []).filter(s => s.conference === 'West') : []
 
-          return (
-            <div key={round.name}>
-              <RoundLabel text={ROUND_LABEL[round.name] ?? round.name} />
-              <div style={{ display: "flex", gap: 10 }}>
-                <ConfHalf series={round.east} roundName={round.name} nextSeries={nextEast} />
-                <ConfHalf series={round.west} roundName={round.name} nextSeries={nextWest} />
-              </div>
-            </div>
-          )
+          return [
+            // Étiquette du round — pleine largeur (span les 3 colonnes)
+            <div key={`label-${roundName}`} style={{
+              gridColumn: "1 / -1",
+              textAlign: "center",
+              padding: "12px 0 8px",
+            }}>
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: ".14em", color: "#475569", textTransform: "uppercase" }}>
+                {ROUND_LABEL[roundName] ?? roundName}
+              </span>
+            </div>,
+
+            // EST content — colonne 1
+            <div key={`east-${roundName}`} style={{ paddingRight: 8 }}>
+              <ConfContent series={eastSeries} roundName={roundName} nextSeries={nextEast} />
+            </div>,
+
+            // WEST content — colonne 3 (colonne 2 = séparateur déjà positionné via gridRow)
+            <div key={`west-${roundName}`} style={{ paddingLeft: 8 }}>
+              <ConfContent series={westSeries} roundName={roundName} nextSeries={nextWest} />
+            </div>,
+          ]
         })}
 
-        {/* ── Finale NBA / Stanley Cup ── */}
-        <RoundLabel text={`⭐ ${finalLabel}`} color="#f59e0b" />
-        <div style={{ maxWidth: 280, margin: "0 auto" }}>
+        {/* ── Finale NBA / Stanley Cup — pleine largeur ── */}
+        <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "12px 0 8px" }}>
+          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: ".14em", color: "#f59e0b", textTransform: "uppercase" }}>
+            ⭐ {finalLabel}
+          </span>
+        </div>
+        <div style={{ gridColumn: "1 / -1", maxWidth: 280, margin: "0 auto", width: "100%" }}>
           {finalsRound?.series[0]
             ? <SeriesCard s={finalsRound.series[0]} />
             : <EmptySlot />
           }
         </div>
 
-        {/* ── Légende ── */}
+        {/* ── Légende — pleine largeur ── */}
         <div style={{
+          gridColumn: "1 / -1",
           display: "flex", gap: 16, marginTop: 18, paddingTop: 12,
           borderTop: "1px solid rgba(255,255,255,0.06)", justifyContent: "center", flexWrap: "wrap",
         }}>
