@@ -10,11 +10,19 @@ const ROUND2_START  = "2026-05-01"
 const SF_START      = "2026-05-15"
 const FINALS_START  = "2026-05-28"
 
+const EAST = new Set([
+  "Atlanta Hawks", "Boston Celtics", "Brooklyn Nets", "Charlotte Hornets",
+  "Chicago Bulls", "Cleveland Cavaliers", "Detroit Pistons", "Indiana Pacers",
+  "Miami Heat", "Milwaukee Bucks", "New York Knicks", "Orlando Magic",
+  "Philadelphia 76ers", "Toronto Raptors", "Washington Wizards",
+])
+
 interface Series {
   teamA: string; teamB: string
   badgeA: string; badgeB: string
   winsA: number; winsB: number
   games: number; startDate: string; done: boolean
+  conference: 'East' | 'West' | 'Finals'
 }
 
 function getRound(startDate: string): string {
@@ -49,11 +57,14 @@ export async function GET() {
       const [tA, tB] = [g.strHomeTeam, g.strAwayTeam].sort()
       const key = tA + "|" + tB
       if (!seriesMap.has(key)) {
+        const confA = EAST.has(tA) ? 'East' : 'West'
+        const confB = EAST.has(tB) ? 'East' : 'West'
+        const conference: 'East' | 'West' | 'Finals' = confA === confB ? confA : 'Finals'
         seriesMap.set(key, {
           teamA: tA, teamB: tB,
           badgeA: g.strHomeTeam === tA ? g.strHomeTeamBadge : g.strAwayTeamBadge,
           badgeB: g.strHomeTeam === tA ? g.strAwayTeamBadge : g.strHomeTeamBadge,
-          winsA: 0, winsB: 0, games: 0, startDate: g.dateEvent, done: false
+          winsA: 0, winsB: 0, games: 0, startDate: g.dateEvent, done: false, conference,
         })
       }
       const s = seriesMap.get(key)!

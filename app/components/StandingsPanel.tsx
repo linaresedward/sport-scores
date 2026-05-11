@@ -210,23 +210,22 @@ export default function StandingsPanel({
       {/* Bouton */}
       <button
         onClick={() => setOpen(true)}
+        title="Classement"
         style={{
-          display: "flex", alignItems: "center", gap: "6px",
-          padding: "7px 14px",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "7px 10px",
           border: "1px solid #e2e8f0", borderRadius: "8px",
-          background: "#fff", cursor: "pointer",
-          fontSize: "13px", fontWeight: 600, color: "#475569",
+          background: "#fff", cursor: "pointer", color: "#475569",
         }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = "#2563eb"; e.currentTarget.style.color = "#2563eb"; }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#475569"; }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
           <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
           <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
         </svg>
-        Classement
       </button>
 
       {/* Overlay */}

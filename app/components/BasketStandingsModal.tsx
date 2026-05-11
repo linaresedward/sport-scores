@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import VerticalPlayoffBracket, { PlayoffRound, PlayoffSeries } from "./VerticalPlayoffBracket";
 import { HorizontalBracket, BracketRound } from "./PlayoffBracket";
 
 // ─── Types locaux ─────────────────────────────────────────
@@ -135,14 +136,14 @@ function RegularSeasonView({ leagueId }: { leagueId: string }) {
 
 // ─── Vue bracket playoffs ──────────────────────────────────
 function PlayoffBracketView({ type }: { type: "playoffs" | "playin" }) {
-  const [rounds, setRounds] = useState<BracketRound[]>([])
+  const [rounds, setRounds] = useState<PlayoffRound[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch("/api/nba-bracket")
       .then(r => r.json())
       .then(d => {
-        const all: BracketRound[] = d.rounds ?? []
+        const all: PlayoffRound[] = (d.rounds ?? []) as PlayoffRound[]
         if (type === "playin") setRounds(all.filter(r => r.name === "Promotion"))
         else setRounds(all.filter(r => r.name !== "Promotion"))
         setLoading(false)
@@ -152,10 +153,29 @@ function PlayoffBracketView({ type }: { type: "playoffs" | "playin" }) {
 
   if (loading) return <div style={{ padding: 48, textAlign: "center", color: "#94a3b8" }}>Chargement...</div>
 
+  if (type === "playin") {
+    const playinBracket: BracketRound[] = rounds.map(r => ({
+      name: r.name,
+      series: r.series.map(s => ({
+        teamA: s.teamA, teamB: s.teamB,
+        badgeA: s.badgeA, badgeB: s.badgeB,
+        winsA: s.winsA, winsB: s.winsB,
+        games: s.games, done: s.done,
+      })),
+    }))
+    return (
+      <HorizontalBracket
+        rounds={playinBracket}
+        emptyMsg="Données du tournoi de promotion non disponibles."
+      />
+    )
+  }
+
   return (
-    <HorizontalBracket
+    <VerticalPlayoffBracket
       rounds={rounds}
-      emptyMsg={type === "playin" ? "Données du tournoi de promotion non disponibles." : "Données des playoffs non disponibles."}
+      finalLabel="FINALE NBA"
+      emptyMsg="Données des playoffs non disponibles."
     />
   )
 }
@@ -176,20 +196,19 @@ export default function BasketStandingsModal({ leagueId, leagueName }: { leagueI
 
   return (
     <>
-      <button onClick={() => setOpen(true)} style={{
-        display: "flex", alignItems: "center", gap: 6, padding: "7px 14px",
+      <button onClick={() => setOpen(true)} title="Classement" style={{
+        display: "flex", alignItems: "center", justifyContent: "center", padding: "7px 10px",
         border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff",
-        cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#475569", whiteSpace: "nowrap",
+        cursor: "pointer", color: "#475569",
       }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = "#2563eb"; e.currentTarget.style.color = "#2563eb" }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#475569" }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" />
           <line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" />
           <line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
         </svg>
-        Classement
       </button>
 
       {open && <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 100 }} />}

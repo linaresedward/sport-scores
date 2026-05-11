@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { HorizontalBracket, BracketRound, BracketSeries } from "./PlayoffBracket";
+import VerticalPlayoffBracket, { PlayoffRound, PlayoffSeries } from "./VerticalPlayoffBracket";
 
 // ─── Types ────────────────────────────────────────────────
 interface HockeyRow {
@@ -19,12 +19,6 @@ interface PlayoffEvent {
   intHomeScore: string | null; intAwayScore: string | null
   strStatus: string; dateEvent: string; strTimestamp: string
   strHomeTeamBadge: string; strAwayTeamBadge: string
-}
-interface PlayoffSeries {
-  teamA: string; teamB: string
-  badgeA: string; badgeB: string
-  winsA: number; winsB: number
-  games: PlayoffEvent[]
 }
 
 const STANDINGS_COLS = "22px 1fr 30px 28px 28px 28px 28px 52px 34px"
@@ -124,12 +118,18 @@ function RegularSeasonView({ leagueId }: { leagueId: string }) {
   )
 }
 
-// ─── Phase Finale NHL — bracket horizontal ─────────────────
-// Dates NHL playoffs 2025-2026
-const NHL_R1_START = "2026-04-18"
-const NHL_R2_START = "2026-05-01"
-const NHL_SF_START = "2026-05-16"
-const NHL_FIN_START= "2026-05-30"
+// ─── Phase Finale NHL — bracket vertical ──────────────────
+const NHL_R1_START  = "2026-04-18"
+const NHL_R2_START  = "2026-05-01"
+const NHL_SF_START  = "2026-05-16"
+const NHL_FIN_START = "2026-05-30"
+
+const EAST_NHL = new Set([
+  "Boston Bruins", "Buffalo Sabres", "Carolina Hurricanes", "Columbus Blue Jackets",
+  "Detroit Red Wings", "Florida Panthers", "Montreal Canadiens", "New Jersey Devils",
+  "New York Islanders", "New York Rangers", "Ottawa Senators", "Philadelphia Flyers",
+  "Pittsburgh Penguins", "Tampa Bay Lightning", "Toronto Maple Leafs", "Washington Capitals",
+])
 
 function getNHLRound(firstGame: string): string {
   if (firstGame >= NHL_FIN_START) return "Finale Stanley Cup"
@@ -140,7 +140,7 @@ function getNHLRound(firstGame: string): string {
 }
 
 function PlayoffView({ leagueId }: { leagueId: string }) {
-  const [rounds, setRounds]   = useState<BracketRound[]>([])
+  const [rounds, setRounds]   = useState<PlayoffRound[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -153,14 +153,16 @@ function PlayoffView({ leagueId }: { leagueId: string }) {
     ]).then(([past, next]) => {
       const allEvents: PlayoffEvent[] = [...(past.events||[]), ...(next.events||[])]
 
-      // Grouper par paire d'équipes
-      const seriesMap = new Map<string, { s: BracketSeries; firstDate: string }>()
+      const seriesMap = new Map<string, { s: PlayoffSeries; firstDate: string }>()
       allEvents.forEach(ev => {
         const [tA, tB] = [ev.strHomeTeam, ev.strAwayTeam].sort()
         const key = tA + "|" + tB
         if (!seriesMap.has(key)) {
+          const confA = EAST_NHL.has(tA) ? 'East' : 'West'
+          const confB = EAST_NHL.has(tB) ? 'East' : 'West'
+          const conference: 'East' | 'West' | 'Finals' = confA === confB ? confA : 'Finals'
           seriesMap.set(key, {
-            s: { teamA: tA, teamB: tB, badgeA: "", badgeB: "", winsA: 0, winsB: 0, games: 0, done: false },
+            s: { teamA: tA, teamB: tB, badgeA: "", badgeB: "", winsA: 0, winsB: 0, games: 0, done: false, conference },
             firstDate: ev.dateEvent,
           })
         }
@@ -178,8 +180,7 @@ function PlayoffView({ leagueId }: { leagueId: string }) {
         if (s.winsA >= 4 || s.winsB >= 4) s.done = true
       })
 
-      // Filtrer séries playoffs réelles (>= 2 jeux depuis le 1er round)
-      const roundsMap = new Map<string, BracketSeries[]>()
+      const roundsMap = new Map<string, PlayoffSeries[]>()
       const ROUND_ORDER = ["1/8 de finale","Quarts de finale","Demi-finales","Finale Stanley Cup"]
       ROUND_ORDER.forEach(r => roundsMap.set(r, []))
 
@@ -189,8 +190,8 @@ function PlayoffView({ leagueId }: { leagueId: string }) {
         roundsMap.get(round)?.push(s)
       })
 
-      const result: BracketRound[] = ROUND_ORDER
-        .map(name => ({ name, series: (roundsMap.get(name) ?? []).sort((a,b) => b.winsA + b.winsB - a.winsA - a.winsB) }))
+      const result: PlayoffRound[] = ROUND_ORDER
+        .map(name => ({ name, series: (roundsMap.get(name) ?? []).sort((a, b) => (b.winsA + b.winsB) - (a.winsA + a.winsB)) }))
         .filter(r => r.series.length > 0)
 
       setRounds(result)
@@ -199,7 +200,13 @@ function PlayoffView({ leagueId }: { leagueId: string }) {
   }, [leagueId])
 
   if (loading) return <div style={{ padding: 48, textAlign: "center", color: "#94a3b8" }}>Chargement...</div>
-  return <HorizontalBracket rounds={rounds} emptyMsg="Données des playoffs NHL non disponibles." />
+  return (
+    <VerticalPlayoffBracket
+      rounds={rounds}
+      finalLabel="FINALE STANLEY CUP"
+      emptyMsg="Données des playoffs NHL non disponibles."
+    />
+  )
 }
 
 // ─── Modal principal ───────────────────────────────────────
@@ -214,20 +221,19 @@ export default function HockeyStandingsModal({ leagueId, leagueName }: { leagueI
 
   return (
     <>
-      <button onClick={() => setOpen(true)} style={{
-        display:"flex",alignItems:"center",gap:6,padding:"7px 14px",
+      <button onClick={() => setOpen(true)} title="Classement" style={{
+        display:"flex",alignItems:"center",justifyContent:"center",padding:"7px 10px",
         border:"1px solid #e2e8f0",borderRadius:8,background:"#fff",
-        cursor:"pointer",fontSize:13,fontWeight:600,color:"#475569",whiteSpace:"nowrap",
+        cursor:"pointer",color:"#475569",
       }}
         onMouseEnter={e=>{e.currentTarget.style.borderColor="#2563eb";e.currentTarget.style.color="#2563eb"}}
         onMouseLeave={e=>{e.currentTarget.style.borderColor="#e2e8f0";e.currentTarget.style.color="#475569"}}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
           <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
           <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
         </svg>
-        Classement
       </button>
 
       {open && <div onClick={()=>setOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",zIndex:100}}/>}
