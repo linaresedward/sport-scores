@@ -361,11 +361,25 @@ function TopPlayers({ players, teamName, logo }: {
 }
 
 // ─── Composant principal ────────────────────────────────────
+function proxyLogo(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.includes("thesportsdb.com")) return url
+  return `/api/logo?url=${encodeURIComponent(url)}`
+}
+
 export default function MatchDetailHighlightly({ matchId }: { matchId: string }) {
   const { t, lang } = useT()
   const [match, setMatch]         = useState<HMatchFull|null>(null)
   const [loading, setLoading]     = useState(true)
   const [activeTab, setActiveTab] = useState<'events'|'stats'|'info'|'standings'>('events')
+  const [isMobile, setIsMobile]   = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 480)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
 
   const fetchMatch = useCallback(async () => {
     try {
@@ -466,62 +480,82 @@ export default function MatchDetailHighlightly({ matchId }: { matchId: string })
             <StatusDisplay match={match}/>
           </div>
 
-          {/* Équipes + Score + Étoiles favoris */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+          {/* Équipes + Score */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?4:8}}>
 
             {/* Domicile */}
-            <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-start"}}>
-              <FavoriteButton
-                item={{ id:String(match.homeTeam.id), type:"team", name:match.homeTeam.name, logo:match.homeTeam.logo??undefined }}
-                size="md"
-              />
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-                <div style={{width:80,height:80,background:"var(--bg-muted)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",padding:6}}>
-                  {match.homeTeam.logo
-                    ? <img src={match.homeTeam.logo} style={{width:68,height:68,objectFit:"contain"}}/>
-                    : <span style={{fontSize:22,fontWeight:700,color:"var(--text-muted)"}}>{match.homeTeam.name.slice(0,2)}</span>
-                  }
-                </div>
-                <span style={{fontWeight:600,textAlign:"center",fontSize:14,color:"var(--text-primary)",maxWidth:110,lineHeight:1.3}}>
-                  {match.homeTeam.name}
-                </span>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flex:1,minWidth:0}}>
+              {!isMobile && (
+                <FavoriteButton
+                  item={{ id:String(match.homeTeam.id), type:"team", name:match.homeTeam.name, logo:match.homeTeam.logo??undefined }}
+                  size="md"
+                />
+              )}
+              <div style={{
+                width:isMobile?56:80, height:isMobile?56:80,
+                background:"var(--bg-muted)", borderRadius:12,
+                display:"flex", alignItems:"center", justifyContent:"center", padding:6, flexShrink:0,
+              }}>
+                {proxyLogo(match.homeTeam.logo)
+                  ? <img src={proxyLogo(match.homeTeam.logo)!} style={{width:isMobile?44:68,height:isMobile?44:68,objectFit:"contain"}} onError={e=>{(e.target as HTMLImageElement).style.display="none"}}/>
+                  : <span style={{fontSize:isMobile?16:22,fontWeight:700,color:"var(--text-muted)"}}>{match.homeTeam.name.slice(0,2).toUpperCase()}</span>
+                }
               </div>
+              <span style={{fontWeight:600,textAlign:"center",fontSize:isMobile?12:14,color:"var(--text-primary)",maxWidth:isMobile?80:110,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
+                {match.homeTeam.name}
+              </span>
+              {isMobile && (
+                <FavoriteButton
+                  item={{ id:String(match.homeTeam.id), type:"team", name:match.homeTeam.name, logo:match.homeTeam.logo??undefined }}
+                  size="md"
+                />
+              )}
             </div>
 
             {/* Score central */}
             <div style={{textAlign:"center",flexShrink:0}}>
               {scoreParts ? (
                 <>
-                  <div style={{fontSize:56,fontWeight:900,letterSpacing:"-0.03em",color:isLive?"#ef4444":"var(--text-primary)",lineHeight:1}}>
+                  <div style={{fontSize:isMobile?40:56,fontWeight:900,letterSpacing:"-0.03em",color:isLive?"#ef4444":"var(--text-primary)",lineHeight:1}}>
                     {scoreParts[0]}
-                    <span style={{color:"var(--border)",margin:"0 8px",fontSize:40}}>-</span>
+                    <span style={{color:"var(--border)",margin:isMobile?"0 4px":"0 8px",fontSize:isMobile?28:40}}>-</span>
                     {scoreParts[1]}
                   </div>
                   {hasPens && <p style={{fontSize:11,color:"#f97316",marginTop:6}}>{t('pen_score')}: {hasPens}</p>}
                 </>
               ) : (
-                <div style={{fontSize:28,fontWeight:700,color:"var(--text-muted)"}}>vs</div>
+                <div style={{fontSize:isMobile?22:28,fontWeight:700,color:"var(--text-muted)"}}>vs</div>
               )}
-              <p style={{fontSize:11,color:"var(--text-muted)",marginTop:10}}>{formatDate(match.date, lang)}</p>
+              <p style={{fontSize:10,color:"var(--text-muted)",marginTop:8}}>{formatDate(match.date, lang)}</p>
             </div>
 
             {/* Extérieur */}
-            <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-end"}}>
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-                <div style={{width:80,height:80,background:"var(--bg-muted)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",padding:6}}>
-                  {match.awayTeam.logo
-                    ? <img src={match.awayTeam.logo} style={{width:68,height:68,objectFit:"contain"}}/>
-                    : <span style={{fontSize:22,fontWeight:700,color:"var(--text-muted)"}}>{match.awayTeam.name.slice(0,2)}</span>
-                  }
-                </div>
-                <span style={{fontWeight:600,textAlign:"center",fontSize:14,color:"var(--text-primary)",maxWidth:110,lineHeight:1.3}}>
-                  {match.awayTeam.name}
-                </span>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flex:1,minWidth:0}}>
+              {!isMobile && (
+                <FavoriteButton
+                  item={{ id:String(match.awayTeam.id), type:"team", name:match.awayTeam.name, logo:match.awayTeam.logo??undefined }}
+                  size="md"
+                />
+              )}
+              <div style={{
+                width:isMobile?56:80, height:isMobile?56:80,
+                background:"var(--bg-muted)", borderRadius:12,
+                display:"flex", alignItems:"center", justifyContent:"center", padding:6, flexShrink:0,
+              }}>
+                {proxyLogo(match.awayTeam.logo)
+                  ? <img src={proxyLogo(match.awayTeam.logo)!} style={{width:isMobile?44:68,height:isMobile?44:68,objectFit:"contain"}} onError={e=>{(e.target as HTMLImageElement).style.display="none"}}/>
+                  : <span style={{fontSize:isMobile?16:22,fontWeight:700,color:"var(--text-muted)"}}>{match.awayTeam.name.slice(0,2).toUpperCase()}</span>
+                }
               </div>
-              <FavoriteButton
-                item={{ id:String(match.awayTeam.id), type:"team", name:match.awayTeam.name, logo:match.awayTeam.logo??undefined }}
-                size="md"
-              />
+              <span style={{fontWeight:600,textAlign:"center",fontSize:isMobile?12:14,color:"var(--text-primary)",maxWidth:isMobile?80:110,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
+                {match.awayTeam.name}
+              </span>
+              {isMobile && (
+                <FavoriteButton
+                  item={{ id:String(match.awayTeam.id), type:"team", name:match.awayTeam.name, logo:match.awayTeam.logo??undefined }}
+                  size="md"
+                />
+              )}
             </div>
           </div>
 

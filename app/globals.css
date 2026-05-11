@@ -736,20 +736,20 @@ html.dark .main-content::-webkit-scrollbar-thumb:hover { background: #475569; }
   align-items: center;
   gap: 6px;
   padding: 12px 8px;
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid var(--border);
   border-radius: 12px;
-  background: white;
+  background: var(--bg-surface);
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-secondary);
   transition: all 0.15s;
 }
 
 .mobile-menu-sport-btn.active {
-  border-color: #2563eb;
-  background: #eff6ff;
-  color: #2563eb;
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -767,8 +767,8 @@ html.dark .main-content::-webkit-scrollbar-thumb:hover { background: #475569; }
   margin-bottom: 2px;
 }
 
-.mobile-menu-league-item:hover { background: #f8fafc; }
-.mobile-menu-league-item.active { background: rgba(37,99,235,0.06); }
+.mobile-menu-league-item:hover { background: var(--bg-muted); }
+.mobile-menu-league-item.active { background: var(--accent-bg); }
 
 .mobile-menu-league-logo {
   width: 36px;
@@ -784,12 +784,12 @@ html.dark .main-content::-webkit-scrollbar-thumb:hover { background: #475569; }
 .mobile-menu-league-name {
   font-size: 14px;
   font-weight: 500;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .mobile-menu-league-country {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-muted);
   margin-top: 1px;
 }
 

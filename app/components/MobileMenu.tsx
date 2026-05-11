@@ -186,7 +186,7 @@ export default function MobileMenu() {
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   width: "100%", padding: "10px 12px",
                   border: "none", borderRadius: "10px", background: "transparent",
-                  cursor: "pointer", color: "#64748b",
+                  cursor: "pointer", color: "var(--text-muted)",
                   fontSize: "11px", fontWeight: 700,
                   letterSpacing: "0.06em", textTransform: "uppercase",
                 }}
@@ -235,7 +235,7 @@ export default function MobileMenu() {
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "10px 12px",
               }}>
-                <span style={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+                <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>
                   Langue
                 </span>
                 <LangToggle />
@@ -244,7 +244,7 @@ export default function MobileMenu() {
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "10px 12px",
               }}>
-                <span style={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+                <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>
                   Mode sombre
                 </span>
                 <ThemeToggle />
@@ -265,7 +265,7 @@ function LeagueRow({ name, country, logo, darkBg, isActive, onClick, emoji, logo
   return (
     <button onClick={onClick} className={`mobile-menu-league-item ${isActive ? "active" : ""}`}>
       <div className="mobile-menu-league-logo"
-        style={{ background: logoStyle?.background ?? (darkBg ? "#1a1f3c" : "#f1f5f9"), ...logoStyle }}>
+        style={{ background: logoStyle?.background ?? (darkBg ? "#1a1f3c" : "var(--bg-muted)"), ...logoStyle }}>
         {emoji ? (
           <span style={{ fontSize: 18 }}>{emoji}</span>
         ) : logo ? (
@@ -281,7 +281,10 @@ function LeagueRow({ name, country, logo, darkBg, isActive, onClick, emoji, logo
         {country && <div className="mobile-menu-league-country">{country}</div>}
       </div>
       {isActive && (
-        <div style={{ width: 4, height: 20, borderRadius: 2, background: "#2563eb", flexShrink: 0 }} />
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
       )}
     </button>
   )

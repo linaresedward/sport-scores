@@ -145,6 +145,14 @@ export default function StandingsPanel({
   const [liveMap, setLiveMap]     = useState<Map<number, LiveInfo>>(new Map());
   const [liveNameMap, setLiveNameMap] = useState<Map<string, LiveInfo>>(new Map());
   const [showLive, setShowLive]   = useState(false);
+  const [isMobile, setIsMobile]   = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 540);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     if (!open || standings.length > 0) return;
@@ -282,7 +290,10 @@ export default function StandingsPanel({
 
             {/* En-tête colonnes */}
             <div style={{
-              display: "grid", gridTemplateColumns: COLS,
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "24px 1fr 28px 34px 72px"
+                : COLS,
               padding: "8px 16px",
               fontSize: "10px", fontWeight: 700, color: "#94a3b8",
               letterSpacing: "0.05em", textTransform: "uppercase",
@@ -291,11 +302,11 @@ export default function StandingsPanel({
               <span>#</span>
               <span>Équipe</span>
               <span style={{ textAlign: "center" }}>MJ</span>
-              <span style={{ textAlign: "center" }}>V</span>
-              <span style={{ textAlign: "center" }}>N</span>
-              <span style={{ textAlign: "center" }}>D</span>
-              <span style={{ textAlign: "center" }}>Buts</span>
-              <span style={{ textAlign: "center" }}>+/-</span>
+              {!isMobile && <span style={{ textAlign: "center" }}>V</span>}
+              {!isMobile && <span style={{ textAlign: "center" }}>N</span>}
+              {!isMobile && <span style={{ textAlign: "center" }}>D</span>}
+              {!isMobile && <span style={{ textAlign: "center" }}>Buts</span>}
+              {!isMobile && <span style={{ textAlign: "center" }}>+/-</span>}
               <span style={{ textAlign: "center" }}>Pts</span>
               <span style={{ textAlign: "center" }}>Forme</span>
             </div>
@@ -358,7 +369,8 @@ export default function StandingsPanel({
                   )}
 
                   <div style={{
-                    display: "grid", gridTemplateColumns: COLS,
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "24px 1fr 28px 34px 72px" : COLS,
                     padding: "7px 16px", alignItems: "center",
                     borderBottom: "1px solid #f8fafc",
                     background: live ? "rgba(239,68,68,0.04)" : "#fff",
@@ -403,13 +415,13 @@ export default function StandingsPanel({
                     </div>
 
                     <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{played}</span>
-                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{won}</span>
-                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{draws}</span>
-                    <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{lost}</span>
-                    <span style={{ textAlign: "center", fontSize: "10px", color: "#64748b" }}>{typeof gf === "number" ? gf : gf}:{typeof ga === "number" ? ga : ga}</span>
-                    <span style={{ textAlign: "center", fontSize: "11px", fontWeight: 600, color: gdRaw > 0 ? "#166534" : gdRaw < 0 ? "#991b1b" : "#64748b" }}>
+                    {!isMobile && <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{won}</span>}
+                    {!isMobile && <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{draws}</span>}
+                    {!isMobile && <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{lost}</span>}
+                    {!isMobile && <span style={{ textAlign: "center", fontSize: "10px", color: "#64748b" }}>{gf}:{ga}</span>}
+                    {!isMobile && <span style={{ textAlign: "center", fontSize: "11px", fontWeight: 600, color: gdRaw > 0 ? "#166534" : gdRaw < 0 ? "#991b1b" : "#64748b" }}>
                       {gdRaw > 0 ? `+${gdRaw}` : gdRaw}
-                    </span>
+                    </span>}
                     <span style={{ textAlign: "center", fontSize: "12px", fontWeight: 700, color: showLive && live ? "#ef4444" : "#0f172a" }}>{pts}</span>
                     <div style={{ display: "flex", gap: "2px", justifyContent: "center" }}>
                       {form.length > 0
