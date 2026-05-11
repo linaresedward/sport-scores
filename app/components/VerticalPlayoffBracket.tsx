@@ -13,7 +13,7 @@ export interface PlayoffRound {
   series: PlayoffSeries[]
 }
 
-// Rounds toujours affichés (avec slots vides si données absentes)
+// Rounds conférence à toujours afficher (slots vides si données absentes)
 const CONF_ROUNDS = ["1/8 de finale", "Quarts de finale", "Demi-finales"] as const
 
 const ROUND_SIZE: Record<string, number> = {
@@ -28,7 +28,6 @@ const ROUND_LABEL: Record<string, string> = {
   "Demi-finales":     "FINALE DE CONFÉRENCE",
 }
 
-// Gap entre les deux paires au sein d'une conférence (Round 1 & 2)
 const PAIR_GAP = 14
 
 function proxyLogo(url: string | null | undefined) {
@@ -99,52 +98,83 @@ function RoundLabel({ text, color = "#475569" }: { text: string; color?: string 
   )
 }
 
-// Affiche les séries d'une conférence pour un round donné
-// Round 1 (4 séries) : 2 paires côte à côte | Round 2 (2 séries) : 2 slots | Round 3 (1 série) : centrée
-function ConfHalf({ series, roundName }: { series: PlayoffSeries[]; roundName: string }) {
+// ─── Algorithme d'appariement bracket ──────────────────────────────────────
+// Pour chaque série du round suivant (nextRound), trouve les 2 séries du round précédent
+// dont les équipes viennent, et les regroupe en paire.
+// Les séries orphelines (non encore matchées) sont groupées par 2 en fin de liste.
+function buildPairs(
+  prevRound: PlayoffSeries[],
+  nextRound: PlayoffSeries[]
+): Array<[PlayoffSeries | null, PlayoffSeries | null]> {
+  const pairs: Array<[PlayoffSeries | null, PlayoffSeries | null]> = []
+  const usedKeys = new Set<string>()
+
+  for (const next of nextRound) {
+    const prevA = prevRound.find(p => p.teamA === next.teamA || p.teamB === next.teamA)
+    const prevB = prevRound.find(p => p.teamA === next.teamB || p.teamB === next.teamB)
+    pairs.push([prevA ?? null, prevB ?? null])
+    if (prevA) usedKeys.add(`${prevA.teamA}|${prevA.teamB}`)
+    if (prevB) usedKeys.add(`${prevB.teamA}|${prevB.teamB}`)
+  }
+
+  // Séries non encore rattachées à un prochain round (futur) → paires par ordre d'arrivée
+  const remaining = prevRound.filter(p => !usedKeys.has(`${p.teamA}|${p.teamB}`))
+  for (let i = 0; i < remaining.length; i += 2) {
+    pairs.push([remaining[i] ?? null, remaining[i + 1] ?? null])
+  }
+
+  // Garantir au minimum le nombre de paires attendu (slots vides)
+  const maxPairs = Math.ceil((ROUND_SIZE[prevRound[0]?.conference ? '' : ''] || prevRound.length || 4) / 2)
+  while (pairs.length < 2 && prevRound.length === 0) pairs.push([null, null])
+
+  return pairs
+}
+
+// ─── Affichage d'une conférence pour un round ──────────────────────────────
+function ConfHalf({
+  series,
+  roundName,
+  nextSeries,
+}: {
+  series: PlayoffSeries[]
+  roundName: string
+  nextSeries: PlayoffSeries[]
+}) {
   const maxCount = ROUND_SIZE[roundName] ?? 1
 
   if (maxCount === 4) {
+    // 4 séries → 2 paires dont les vainqueurs se retrouveront en 1/2 finale
+    const pairs = buildPairs(series, nextSeries)
+    // S'assurer d'avoir exactement 2 paires
+    while (pairs.length < 2) pairs.push([null, null])
     return (
       <div style={{ flex: 1, display: "flex", gap: PAIR_GAP }}>
-        {/* Paire 1 */}
-        <div style={{ flex: 1, display: "flex", gap: 4 }}>
-          {[0, 1].map(i => (
-            <div key={i} style={{ flex: 1 }}>
-              {series[i] ? <SeriesCard s={series[i]} /> : <EmptySlot />}
-            </div>
-          ))}
-        </div>
-        {/* Paire 2 */}
-        <div style={{ flex: 1, display: "flex", gap: 4 }}>
-          {[2, 3].map(i => (
-            <div key={i} style={{ flex: 1 }}>
-              {series[i] ? <SeriesCard s={series[i]} /> : <EmptySlot />}
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (maxCount === 2) {
-    return (
-      <div style={{ flex: 1, display: "flex", gap: PAIR_GAP }}>
-        {[0, 1].map(i => (
-          <div key={i} style={{ flex: 1 }}>
-            {series[i] ? <SeriesCard s={series[i]} /> : <EmptySlot />}
+        {pairs.slice(0, 2).map(([a, b], pi) => (
+          <div key={pi} style={{ flex: 1, display: "flex", gap: 4 }}>
+            <div style={{ flex: 1 }}>{a ? <SeriesCard s={a} /> : <EmptySlot />}</div>
+            <div style={{ flex: 1 }}>{b ? <SeriesCard s={b} /> : <EmptySlot />}</div>
           </div>
         ))}
       </div>
     )
   }
 
-  // maxCount === 1 : Finale de Conférence, centrée dans la moitié
+  if (maxCount === 2) {
+    // 2 séries → appairées selon la finale de conférence
+    const pairs = buildPairs(series, nextSeries)
+    const pair = pairs[0] ?? [null, null]
+    return (
+      <div style={{ flex: 1, display: "flex", gap: PAIR_GAP }}>
+        <div style={{ flex: 1 }}>{pair[0] ? <SeriesCard s={pair[0]} /> : <EmptySlot />}</div>
+        <div style={{ flex: 1 }}>{pair[1] ? <SeriesCard s={pair[1]} /> : <EmptySlot />}</div>
+      </div>
+    )
+  }
+
+  // maxCount === 1 : Finale de Conférence — centrée dans la moitié
   return (
     <div style={{ flex: 1, display: "flex", padding: "0 22%" }}>
-      <div style={{ flex: 1 }}>
-        {series[0] ? <SeriesCard s={series[0]} /> : <EmptySlot />}
-      </div>
+      <div style={{ flex: 1 }}>{series[0] ? <SeriesCard s={series[0]} /> : <EmptySlot />}</div>
     </div>
   )
 }
@@ -158,17 +188,14 @@ export default function VerticalPlayoffBracket({
   finalLabel?: string
   emptyMsg?: string
 }) {
-  // Construire une map pour retrouver les données par nom de round
   const roundMap = new Map(rounds.map(r => [r.name, r]))
 
-  // Toujours afficher les 3 rounds de conférence (avec slots vides si absent)
   const allConfRounds = CONF_ROUNDS.map(name => ({
     name,
     east: (roundMap.get(name)?.series ?? []).filter(s => s.conference === 'East'),
     west: (roundMap.get(name)?.series ?? []).filter(s => s.conference === 'West'),
   }))
 
-  // Finale (NBA / Stanley Cup) - cross-conférence
   const finalsRound = rounds.find(r => r.series.some(s => s.conference === 'Finals'))
 
   const hasAnyData = rounds.some(r => r.series.length > 0)
@@ -205,15 +232,22 @@ export default function VerticalPlayoffBracket({
         </div>
 
         {/* ── Rounds de conférence ── */}
-        {allConfRounds.map(round => (
-          <div key={round.name}>
-            <RoundLabel text={ROUND_LABEL[round.name] ?? round.name} />
-            <div style={{ display: "flex", gap: 10 }}>
-              <ConfHalf series={round.east} roundName={round.name} />
-              <ConfHalf series={round.west} roundName={round.name} />
+        {allConfRounds.map((round, ri) => {
+          // Séries du round suivant (pour le calcul des paires)
+          const nextRoundName = CONF_ROUNDS[ri + 1]
+          const nextEast = nextRoundName ? (roundMap.get(nextRoundName)?.series ?? []).filter(s => s.conference === 'East') : []
+          const nextWest = nextRoundName ? (roundMap.get(nextRoundName)?.series ?? []).filter(s => s.conference === 'West') : []
+
+          return (
+            <div key={round.name}>
+              <RoundLabel text={ROUND_LABEL[round.name] ?? round.name} />
+              <div style={{ display: "flex", gap: 10 }}>
+                <ConfHalf series={round.east} roundName={round.name} nextSeries={nextEast} />
+                <ConfHalf series={round.west} roundName={round.name} nextSeries={nextWest} />
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
 
         {/* ── Finale NBA / Stanley Cup ── */}
         <RoundLabel text={`⭐ ${finalLabel}`} color="#f59e0b" />

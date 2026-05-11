@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import VerticalPlayoffBracket, { PlayoffRound, PlayoffSeries } from "./VerticalPlayoffBracket";
+import VerticalPlayoffBracket, { PlayoffRound } from "./VerticalPlayoffBracket";
 
 // ─── Types ────────────────────────────────────────────────
 interface HockeyRow {
@@ -13,14 +13,6 @@ interface HockeyRow {
 }
 interface HockeyGroup { name: string; standings: HockeyRow[] }
 
-// TheSportsDB playoff event
-interface PlayoffEvent {
-  idEvent: string; strHomeTeam: string; strAwayTeam: string
-  intHomeScore: string | null; intAwayScore: string | null
-  strStatus: string; dateEvent: string; strTimestamp: string
-  strHomeTeamBadge: string; strAwayTeamBadge: string
-}
-
 const STANDINGS_COLS = "22px 1fr 30px 28px 28px 28px 28px 52px 34px"
 
 // Top 8 par conférence → playoffs (bleu)
@@ -30,8 +22,6 @@ function getZoneNHL(pos: number, groupName: string): { bg: string; border: strin
   if (pos <= 8) return { bg: "rgba(59,130,246,0.06)", border: "#3b82f6" }
   return null
 }
-const SPORTSDB_NHL  = "4380"
-const SPORTSDB_KEY  = "139695"
 
 function proxyLogo(url: string) { return `/api/logo?url=${encodeURIComponent(url)}` }
 
@@ -118,85 +108,17 @@ function RegularSeasonView({ leagueId }: { leagueId: string }) {
   )
 }
 
-// ─── Phase Finale NHL — bracket vertical ──────────────────
-const NHL_R1_START  = "2026-04-18"
-const NHL_R2_START  = "2026-05-01"
-const NHL_SF_START  = "2026-05-16"
-const NHL_FIN_START = "2026-05-30"
-
-const EAST_NHL = new Set([
-  "Boston Bruins", "Buffalo Sabres", "Carolina Hurricanes", "Columbus Blue Jackets",
-  "Detroit Red Wings", "Florida Panthers", "Montreal Canadiens", "New Jersey Devils",
-  "New York Islanders", "New York Rangers", "Ottawa Senators", "Philadelphia Flyers",
-  "Pittsburgh Penguins", "Tampa Bay Lightning", "Toronto Maple Leafs", "Washington Capitals",
-])
-
-function getNHLRound(firstGame: string): string {
-  if (firstGame >= NHL_FIN_START) return "Finale Stanley Cup"
-  if (firstGame >= NHL_SF_START)  return "Demi-finales"
-  if (firstGame >= NHL_R2_START)  return "Quarts de finale"
-  if (firstGame >= NHL_R1_START)  return "1/8 de finale"
-  return "Qualifications"
-}
-
+// ─── Phase Finale NHL — bracket vertical (via /api/nhl-bracket) ──────────────
 function PlayoffView({ leagueId }: { leagueId: string }) {
   const [rounds, setRounds]   = useState<PlayoffRound[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const sdbLeague = leagueId === "49291" ? SPORTSDB_NHL : null
-    if (!sdbLeague) { setLoading(false); return }
-
-    Promise.all([
-      fetch(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventspastleague.php?id=${sdbLeague}`).then(r => r.json()),
-      fetch(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsnextleague.php?id=${sdbLeague}`).then(r => r.json()),
-    ]).then(([past, next]) => {
-      const allEvents: PlayoffEvent[] = [...(past.events||[]), ...(next.events||[])]
-
-      const seriesMap = new Map<string, { s: PlayoffSeries; firstDate: string }>()
-      allEvents.forEach(ev => {
-        const [tA, tB] = [ev.strHomeTeam, ev.strAwayTeam].sort()
-        const key = tA + "|" + tB
-        if (!seriesMap.has(key)) {
-          const confA = EAST_NHL.has(tA) ? 'East' : 'West'
-          const confB = EAST_NHL.has(tB) ? 'East' : 'West'
-          const conference: 'East' | 'West' | 'Finals' = confA === confB ? confA : 'Finals'
-          seriesMap.set(key, {
-            s: { teamA: tA, teamB: tB, badgeA: "", badgeB: "", winsA: 0, winsB: 0, games: 0, done: false, conference },
-            firstDate: ev.dateEvent,
-          })
-        }
-        const entry = seriesMap.get(key)!
-        const s = entry.s
-        s.games++
-        if (ev.dateEvent < entry.firstDate) entry.firstDate = ev.dateEvent
-        if (!s.badgeA) { s.badgeA = ev.strHomeTeam === tA ? ev.strHomeTeamBadge : ev.strAwayTeamBadge }
-        if (!s.badgeB) { s.badgeB = ev.strHomeTeam === tB ? ev.strHomeTeamBadge : ev.strAwayTeamBadge }
-        if (ev.intHomeScore !== null && ev.intAwayScore !== null) {
-          const hWin = parseInt(ev.intHomeScore) > parseInt(ev.intAwayScore)
-          if (hWin) { if (ev.strHomeTeam === tA) s.winsA++; else s.winsB++ }
-          else       { if (ev.strAwayTeam === tA) s.winsA++; else s.winsB++ }
-        }
-        if (s.winsA >= 4 || s.winsB >= 4) s.done = true
-      })
-
-      const roundsMap = new Map<string, PlayoffSeries[]>()
-      const ROUND_ORDER = ["1/8 de finale","Quarts de finale","Demi-finales","Finale Stanley Cup"]
-      ROUND_ORDER.forEach(r => roundsMap.set(r, []))
-
-      seriesMap.forEach(({ s, firstDate }) => {
-        if (s.games < 2 || firstDate < NHL_R1_START) return
-        const round = getNHLRound(firstDate)
-        roundsMap.get(round)?.push(s)
-      })
-
-      const result: PlayoffRound[] = ROUND_ORDER
-        .map(name => ({ name, series: (roundsMap.get(name) ?? []).sort((a, b) => (b.winsA + b.winsB) - (a.winsA + a.winsB)) }))
-        .filter(r => r.series.length > 0)
-
-      setRounds(result)
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    if (leagueId !== "49291") { setLoading(false); return }
+    fetch("/api/nhl-bracket")
+      .then(r => r.json())
+      .then(d => { setRounds(d.rounds ?? []); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [leagueId])
 
   if (loading) return <div style={{ padding: 48, textAlign: "center", color: "#94a3b8" }}>Chargement...</div>
