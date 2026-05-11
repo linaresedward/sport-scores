@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import Topbar from './components/Topbar'
 import Sidebar from './components/Sidebar'
+import BottomNav from './components/BottomNav'
 import { LangProvider } from '@/lib/i18n'
 import './globals.css'
 
@@ -30,6 +31,7 @@ export default function RootLayout({
                 {children}
               </main>
             </div>
+            <BottomNav />
           </div>
         </LangProvider>
       </body>

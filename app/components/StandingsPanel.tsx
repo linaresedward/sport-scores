@@ -65,10 +65,70 @@ function FormDot({ result }: { result: string }) {
 // Colonnes : # | Équipe | MJ | V | N | D | Buts | +/- | Pts | Forme
 const COLS = "24px 1fr 28px 26px 26px 26px 42px 34px 32px 88px";
 
-// Statuts Highlightly indiquant qu'un match est en cours
 const LIVE_DESCS = new Set(["First half", "Second half", "Half time", "Extra time", "Penalties"])
 
 interface LiveInfo { score: string; opponent: string; isHome: boolean; clock: number | null }
+
+// ─── Calcul du classement virtuel (live) ──────────────────
+function norm(s: string) { return s.toLowerCase().replace(/[^\w]/g, "") }
+
+interface VirtualRow extends Standing {
+  vPts: number; vGD: number; vGF: number; vGA: number
+  vRank: number; origRank: number; rankChange: number
+  liveInfo?: LiveInfo
+}
+
+function computeVirtualStandings(
+  standings: Standing[],
+  liveMap: Map<number, LiveInfo>,
+  liveNameMap: Map<string, LiveInfo>
+): VirtualRow[] {
+  const adjusted: VirtualRow[] = standings.map((row, idx) => {
+    const teamId   = row.team?.id
+    const teamName = norm(row.strTeam ?? row.team?.name ?? "")
+
+    // Essai par ID Highlightly, puis par nom (fallback)
+    const live = (teamId ? liveMap.get(teamId) : undefined) ?? liveNameMap.get(teamName)
+
+    const pts = parseInt(row.intPoints ?? String(row.points ?? 0))
+    const gd  = parseInt(row.intGoalDifference ?? "0")
+    const gf  = parseInt(row.intGoalsFor ?? String((row.total?.scoredGoals ?? 0)))
+    const ga  = parseInt(row.intGoalsAgainst ?? String((row.total?.receivedGoals ?? 0)))
+
+    if (!live || !live.score) {
+      return { ...row, vPts: pts, vGD: gd, vGF: gf, vGA: ga, vRank: 0, origRank: idx + 1, rankChange: 0 }
+    }
+
+    const [h, a] = live.score.split(" - ").map(Number)
+    const myScore    = live.isHome ? h : a
+    const theirScore = live.isHome ? a : h
+    const addPts = myScore > theirScore ? 3 : myScore === theirScore ? 1 : 0
+
+    return {
+      ...row,
+      liveInfo: live,
+      vPts: pts + addPts,
+      vGD:  gd  + myScore - theirScore,
+      vGF:  gf  + myScore,
+      vGA:  ga  + theirScore,
+      vRank: 0, origRank: idx + 1, rankChange: 0,
+    }
+  })
+
+  // Re-trier par pts virtuels → GD → GF
+  adjusted.sort((a, b) => {
+    if (b.vPts !== a.vPts) return b.vPts - a.vPts
+    if (b.vGD  !== a.vGD)  return b.vGD  - a.vGD
+    return b.vGF - a.vGF
+  })
+
+  adjusted.forEach((row, idx) => {
+    row.vRank      = idx + 1
+    row.rankChange = row.origRank - row.vRank  // >0 = monte, <0 = descend
+  })
+
+  return adjusted
+}
 
 export default function StandingsPanel({
   leagueId,
@@ -82,8 +142,9 @@ export default function StandingsPanel({
   const [open, setOpen]           = useState(false);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [loading, setLoading]     = useState(false);
-  // Map Highlightly teamId → info match live
   const [liveMap, setLiveMap]     = useState<Map<number, LiveInfo>>(new Map());
+  const [liveNameMap, setLiveNameMap] = useState<Map<string, LiveInfo>>(new Map());
+  const [showLive, setShowLive]   = useState(false);
 
   useEffect(() => {
     if (!open || standings.length > 0) return;
@@ -97,17 +158,21 @@ export default function StandingsPanel({
     ]).then(([standData, matchData]) => {
       setStandings(standData.groups?.[0]?.standings ?? []);
 
-      // Construire la map des matchs live pour ce championnat
       const leagueMatches: any[] = matchData[leagueId] ?? [];
-      const map = new Map<number, LiveInfo>();
+      const map     = new Map<number, LiveInfo>();
+      const nameMap = new Map<string, LiveInfo>();
+
       leagueMatches.forEach((m: any) => {
         if (!LIVE_DESCS.has(m.state?.description ?? "")) return;
         const score = m.state?.score?.current ?? "";
         const clock = m.state?.clock ?? null;
         map.set(m.homeTeam.id, { score, opponent: m.awayTeam.name, isHome: true, clock });
         map.set(m.awayTeam.id, { score, opponent: m.homeTeam.name, isHome: false, clock });
+        nameMap.set(norm(m.homeTeam.name), { score, opponent: m.awayTeam.name, isHome: true, clock });
+        nameMap.set(norm(m.awayTeam.name), { score, opponent: m.homeTeam.name, isHome: false, clock });
       });
       setLiveMap(map);
+      setLiveNameMap(nameMap);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [open, leagueId, standings.length]);
@@ -197,6 +262,24 @@ export default function StandingsPanel({
           <div style={{ padding: "48px", textAlign: "center", color: "#94a3b8" }}>Classement non disponible.</div>
         ) : (
           <div style={{ flex: 1 }}>
+            {/* Toggle Live / Régulier — visible uniquement si des matchs sont en cours */}
+            {liveMap.size > 0 && (
+              <div style={{ display: "flex", gap: 6, padding: "8px 16px", borderBottom: "1px solid #f1f5f9", flexShrink: 0 }}>
+                {[
+                  { key: false, label: "Régulier" },
+                  { key: true,  label: "🔴 Live" },
+                ].map(tab => (
+                  <button key={String(tab.key)} onClick={() => setShowLive(tab.key)} style={{
+                    padding: "4px 12px", borderRadius: 6, border: "1px solid", cursor: "pointer",
+                    borderColor: showLive === tab.key ? "#ef4444" : "#e2e8f0",
+                    background:  showLive === tab.key ? "rgba(239,68,68,0.08)" : "#fff",
+                    color:       showLive === tab.key ? "#ef4444" : "#64748b",
+                    fontSize: 11, fontWeight: showLive === tab.key ? 700 : 500,
+                  }}>{tab.label}</button>
+                ))}
+              </div>
+            )}
+
             {/* En-tête colonnes */}
             <div style={{
               display: "grid", gridTemplateColumns: COLS,
@@ -217,13 +300,14 @@ export default function StandingsPanel({
               <span style={{ textAlign: "center" }}>Forme</span>
             </div>
 
-            {standings.map((row, idx) => {
-              // ── Info match live pour cette équipe ───────────────────────────
-              const teamHLId = row.team?.id  // ID Highlightly (si données HL)
-              const live     = teamHLId ? liveMap.get(teamHLId) : undefined
+            {(showLive
+              ? computeVirtualStandings(standings, liveMap, liveNameMap)
+              : (standings as VirtualRow[])
+            ).map((row, idx) => {
+              const live = showLive ? row.liveInfo : (row.team?.id ? liveMap.get(row.team.id) : undefined);
 
               // ── Normalisation : TheSportsDB OU Highlightly ──────────────────
-              const rank    = parseInt(row.intRank ?? String(row.position ?? idx + 1));
+              const rank    = showLive ? row.vRank : parseInt(row.intRank ?? String(row.position ?? idx + 1));
               const name    = row.strTeam  ?? row.team?.name  ?? "";
               const badge   = row.strBadge
                 ? row.strBadge.replace("/tiny", "")
@@ -234,12 +318,12 @@ export default function StandingsPanel({
               const won     = row.intWin    ?? String(row.total?.wins  ?? "");
               const draws   = row.intDraw   ?? String(row.total?.draws ?? "");
               const lost    = row.intLoss   ?? String(row.total?.loses ?? "");
-              const gf      = row.intGoalsFor      ?? row.total?.scoredGoals   ?? "?";
-              const ga      = row.intGoalsAgainst  ?? row.total?.receivedGoals ?? "?";
-              const gdRaw   = row.intGoalDifference
+              const gf      = showLive ? row.vGF : (row.intGoalsFor      ?? row.total?.scoredGoals   ?? "?");
+              const ga      = showLive ? row.vGA : (row.intGoalsAgainst  ?? row.total?.receivedGoals ?? "?");
+              const gdRaw   = showLive ? row.vGD : (row.intGoalDifference
                 ? parseInt(row.intGoalDifference)
-                : (row.total ? row.total.scoredGoals - row.total.receivedGoals : 0);
-              const pts     = row.intPoints ?? String(row.points ?? "");
+                : (row.total ? row.total.scoredGoals - row.total.receivedGoals : 0));
+              const pts     = showLive ? row.vPts : (row.intPoints ?? String(row.points ?? ""));
               const form    = (row.strForm ?? "").split("").slice(0, 5);
               const key     = row.idTeam ?? String(idx);
 
@@ -248,13 +332,17 @@ export default function StandingsPanel({
               const zoneFromUEFA  = getUEFAZone(leagueId, rank);
               const zoneColor     = zoneFromDesc ?? zoneFromUEFA?.color ?? null;
 
-              // ── Séparateur de zone ──────────────────────────────────────────
-              const prevRank  = standings[idx - 1] ? (parseInt((standings[idx - 1] as any).intRank ?? String((standings[idx - 1] as any).position ?? idx))) : null;
-              const prevZoneDesc = idx > 0 ? getZoneColor(standings[idx - 1].strDescription ?? "") : null;
-              const prevZoneUEFA = idx > 0 ? getUEFAZone(leagueId, prevRank ?? 0) : null;
+              // ── Séparateur de zone (mode régulier uniquement) ───────────────
+              const prevRowOrig  = !showLive && idx > 0 ? standings[idx - 1] : null;
+              const prevZoneDesc = prevRowOrig ? getZoneColor(prevRowOrig.strDescription ?? "") : null;
+              const prevRankNum  = prevRowOrig ? parseInt((prevRowOrig as any).intRank ?? String((prevRowOrig as any).position ?? idx)) : null;
+              const prevZoneUEFA = prevRowOrig ? getUEFAZone(leagueId, prevRankNum ?? 0) : null;
               const prevZone = prevZoneDesc ?? prevZoneUEFA?.color ?? null;
-              const showSeparator = idx > 0 && zoneColor !== prevZone;
+              const showSeparator = !showLive && idx > 0 && zoneColor !== prevZone;
               const separatorLabel = zoneFromUEFA?.label ?? row.strDescription;
+
+              // ── Flèche de changement de rang (mode live) ────────────────────
+              const rankChange = showLive ? row.rankChange : 0;
 
               return (
                 <div key={key}>
@@ -276,10 +364,18 @@ export default function StandingsPanel({
                     background: live ? "rgba(239,68,68,0.04)" : "#fff",
                     borderLeft: live ? "3px solid #ef4444" : "3px solid transparent",
                   }}>
-                    {/* Rang avec barre couleur zone */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                    {/* Rang avec barre couleur zone + flèche live */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "2px", position: "relative" }}>
                       <div style={{ width: "3px", height: "18px", borderRadius: "2px", background: zoneColor || "transparent", flexShrink: 0 }} />
                       <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>{rank}</span>
+                      {showLive && rankChange !== 0 && (
+                        <span style={{
+                          fontSize: 8, fontWeight: 800, lineHeight: 1,
+                          color: rankChange > 0 ? "#16a34a" : "#dc2626",
+                        }}>
+                          {rankChange > 0 ? "▲" : "▼"}
+                        </span>
+                      )}
                     </div>
 
                     {/* Équipe */}
@@ -310,11 +406,11 @@ export default function StandingsPanel({
                     <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{won}</span>
                     <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{draws}</span>
                     <span style={{ textAlign: "center", fontSize: "11px", color: "#475569" }}>{lost}</span>
-                    <span style={{ textAlign: "center", fontSize: "10px", color: "#64748b" }}>{gf}:{ga}</span>
+                    <span style={{ textAlign: "center", fontSize: "10px", color: "#64748b" }}>{typeof gf === "number" ? gf : gf}:{typeof ga === "number" ? ga : ga}</span>
                     <span style={{ textAlign: "center", fontSize: "11px", fontWeight: 600, color: gdRaw > 0 ? "#166534" : gdRaw < 0 ? "#991b1b" : "#64748b" }}>
                       {gdRaw > 0 ? `+${gdRaw}` : gdRaw}
                     </span>
-                    <span style={{ textAlign: "center", fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{pts}</span>
+                    <span style={{ textAlign: "center", fontSize: "12px", fontWeight: 700, color: showLive && live ? "#ef4444" : "#0f172a" }}>{pts}</span>
                     <div style={{ display: "flex", gap: "2px", justifyContent: "center" }}>
                       {form.length > 0
                         ? form.map((r, i) => <FormDot key={i} result={r} />)
