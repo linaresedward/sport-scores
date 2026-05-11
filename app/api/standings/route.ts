@@ -20,7 +20,7 @@ const SPECIAL_SEASONS: Record<string, string> = {
 
 const SPORTSDB_KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY ?? "139695"
 
-// Cache mémoire TheSportsDB — 1 heure
+// Cache mémoire TheSportsDB — 15 minutes
 const formCache = new Map<string, { data: Record<string, string>; ts: number }>()
 
 interface TeamData { form: string; description: string }
@@ -58,12 +58,12 @@ async function getFormMap(highlightlyId: string): Promise<Record<string, TeamDat
   if (!sportsdbId) return {}
 
   const cached = formCache.get(highlightlyId)
-  if (cached && Date.now() - cached.ts < 3_600_000) return cached.data as any
+  if (cached && Date.now() - cached.ts < 900_000) return cached.data as any
 
   const season = SPECIAL_SEASONS[highlightlyId] ?? "2025-2026"
   try {
     const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/lookuptable.php?l=${sportsdbId}&s=${season}`
-    const res  = await fetch(url, { next: { revalidate: 3600 } })
+    const res  = await fetch(url, { next: { revalidate: 900 } })
     const json = await res.json()
 
     const map: Record<string, TeamData> = {}

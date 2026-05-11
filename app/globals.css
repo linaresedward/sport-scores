@@ -853,3 +853,8 @@ html.dark .main-content::-webkit-scrollbar-thumb:hover { background: #475569; }
 html.dark .bottom-nav {
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3);
 }
+
+/* Cacher la bottom nav quand le menu mobile est ouvert */
+body.mobile-menu-open .bottom-nav {
+  display: none !important;
+}

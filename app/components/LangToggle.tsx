@@ -8,7 +8,7 @@ export default function LangToggle() {
   return (
     <div style={{
       display: "flex", alignItems: "center",
-      background: "#f1f5f9", borderRadius: "8px",
+      background: "var(--bg-muted)", borderRadius: "8px",
       padding: "2px", gap: "2px", flexShrink: 0,
     }}>
       {(["fr", "en"] as const).map((l) => (
@@ -23,9 +23,9 @@ export default function LangToggle() {
             fontSize: "12px",
             fontWeight: 700,
             letterSpacing: "0.04em",
-            background: lang === l ? "#fff" : "transparent",
-            color: lang === l ? "#0f172a" : "#94a3b8",
-            boxShadow: lang === l ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+            background: lang === l ? "var(--bg-surface)" : "transparent",
+            color: lang === l ? "var(--text-primary)" : "var(--text-muted)",
+            boxShadow: lang === l ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
             transition: "all 0.15s",
           }}
         >

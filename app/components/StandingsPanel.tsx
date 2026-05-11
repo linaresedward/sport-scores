@@ -146,6 +146,10 @@ export default function StandingsPanel({
   const [liveNameMap, setLiveNameMap] = useState<Map<string, LiveInfo>>(new Map());
   const [showLive, setShowLive]   = useState(false);
   const [isMobile, setIsMobile]   = useState(false);
+  const [activePanel, setActivePanel] = useState<"standings"|"scorers"|"assists">("standings");
+  const [scorers,  setScorers]    = useState<any[]>([]);
+  const [assists,  setAssists]    = useState<any[]>([]);
+  const [scorersLoading, setScorersLoading] = useState(false);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 540);
@@ -153,6 +157,22 @@ export default function StandingsPanel({
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  useEffect(() => {
+    if (!open || (activePanel === "standings" && scorers.length > 0)) return;
+    if (activePanel === "scorers" && scorers.length === 0) {
+      setScorersLoading(true);
+      Promise.all([
+        fetch(`/api/top-scorers?leagueId=${leagueId}&type=scorers`).then(r => r.json()),
+        fetch(`/api/top-scorers?leagueId=${leagueId}&type=assists`).then(r => r.json()),
+      ]).then(([s, a]) => { setScorers(s); setAssists(a); }).catch(() => {}).finally(() => setScorersLoading(false));
+    }
+    if (activePanel === "assists" && assists.length === 0) {
+      setScorersLoading(true);
+      fetch(`/api/top-scorers?leagueId=${leagueId}&type=assists`).then(r => r.json())
+        .then(a => setAssists(a)).catch(() => {}).finally(() => setScorersLoading(false));
+    }
+  }, [open, activePanel, leagueId, scorers.length, assists.length]);
 
   useEffect(() => {
     if (!open || standings.length > 0) return;
@@ -232,39 +252,107 @@ export default function StandingsPanel({
       }}>
         {/* Header */}
         <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "16px 20px",
-          borderBottom: "1px solid #f1f5f9",
           position: "sticky", top: 0, background: "#fff", zIndex: 1,
+          borderBottom: "1px solid #f1f5f9",
         }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>Classement</span>
-              {liveMap.size > 0 && (
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  padding: "2px 8px", borderRadius: 999,
-                  background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
-                  fontSize: 10, fontWeight: 700, color: "#ef4444",
-                }}>
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", animation: "livePulse 1.4s ease-in-out infinite" }} />
-                  LIVE
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px 10px" }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>
+                  {activePanel === "standings" ? "Classement" : activePanel === "scorers" ? "Buteurs" : "Passeurs"}
                 </span>
-              )}
+                {liveMap.size > 0 && activePanel === "standings" && (
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    padding: "2px 8px", borderRadius: 999,
+                    background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
+                    fontSize: 10, fontWeight: 700, color: "#ef4444",
+                  }}>
+                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", animation: "livePulse 1.4s ease-in-out infinite" }} />
+                    LIVE
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
+                {leagueName} · 2025-2026
+              </div>
             </div>
-            <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
-              {leagueName} · 2025-2026
-            </div>
+            <button onClick={() => setOpen(false)} style={{
+              width: "32px", height: "32px", borderRadius: "8px",
+              border: "1px solid #f1f5f9", background: "#f8fafc",
+              cursor: "pointer", display: "flex", alignItems: "center",
+              justifyContent: "center", fontSize: "16px", color: "#64748b",
+            }}>✕</button>
           </div>
-          <button onClick={() => setOpen(false)} style={{
-            width: "32px", height: "32px", borderRadius: "8px",
-            border: "1px solid #f1f5f9", background: "#f8fafc",
-            cursor: "pointer", display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: "16px", color: "#64748b",
-          }}>✕</button>
+          {/* Onglets */}
+          <div style={{ display: "flex", padding: "0 20px 0", gap: 4 }}>
+            {([
+              { key: "standings", label: "🏆 Classement" },
+              { key: "scorers",   label: "⚽ Buteurs" },
+              { key: "assists",   label: "🎯 Passeurs" },
+            ] as const).map(tab => (
+              <button key={tab.key} onClick={() => setActivePanel(tab.key)} style={{
+                padding: "7px 12px", border: "none", background: "transparent", cursor: "pointer",
+                fontSize: 12, fontWeight: activePanel === tab.key ? 700 : 500,
+                color: activePanel === tab.key ? "#2563eb" : "#64748b",
+                borderBottom: activePanel === tab.key ? "2px solid #2563eb" : "2px solid transparent",
+                transition: "all 0.15s",
+              }}>{tab.label}</button>
+            ))}
+          </div>
         </div>
 
-        {loading ? (
+        {/* ── Onglet Buteurs / Passeurs ── */}
+        {(activePanel === "scorers" || activePanel === "assists") && (
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {scorersLoading ? (
+              <div style={{ padding: "48px", textAlign: "center", color: "#94a3b8" }}>Chargement...</div>
+            ) : (activePanel === "scorers" ? scorers : assists).length === 0 ? (
+              <div style={{ padding: "48px", textAlign: "center", color: "#94a3b8" }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+                <div>Données non disponibles pour cette compétition</div>
+              </div>
+            ) : (
+              <>
+                {/* En-tête */}
+                <div style={{
+                  display: "grid", gridTemplateColumns: "28px 1fr 80px 40px 40px",
+                  padding: "8px 16px", fontSize: 10, fontWeight: 700, color: "#94a3b8",
+                  letterSpacing: ".05em", textTransform: "uppercase",
+                  background: "#f8fafc", borderBottom: "1px solid #f1f5f9",
+                }}>
+                  <span>#</span><span>Joueur</span><span>Équipe</span>
+                  <span style={{ textAlign: "center" }}>{activePanel === "scorers" ? "Buts" : "Passes"}</span>
+                  <span style={{ textAlign: "center" }}>MJ</span>
+                </div>
+                {(activePanel === "scorers" ? scorers : assists).map((s: any, idx: number) => (
+                  <div key={idx} style={{
+                    display: "grid", gridTemplateColumns: "28px 1fr 80px 40px 40px",
+                    padding: "8px 16px", alignItems: "center",
+                    borderBottom: "1px solid #f8fafc",
+                  }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>{s.rank ?? idx + 1}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, overflow: "hidden" }}>
+                      {s.photo && <img src={s.photo} alt="" width={22} height={22} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />}
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, overflow: "hidden" }}>
+                      {s.teamLogo && <img src={s.teamLogo} alt="" width={14} height={14} style={{ objectFit: "contain", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />}
+                      <span style={{ fontSize: 11, color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.team}</span>
+                    </div>
+                    <span style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                      {activePanel === "scorers" ? s.goals : s.assists}
+                    </span>
+                    <span style={{ textAlign: "center", fontSize: 11, color: "#94a3b8" }}>{s.played || "—"}</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Onglet Classement ── */}
+        {activePanel === "standings" && (loading ? (
           <div style={{ padding: "48px", textAlign: "center", color: "#94a3b8" }}>Chargement...</div>
         ) : standings.length === 0 ? (
           <div style={{ padding: "48px", textAlign: "center", color: "#94a3b8" }}>Classement non disponible.</div>
@@ -454,7 +542,7 @@ export default function StandingsPanel({
               </div>
             </div>
           </div>
-        )}
+        ))}
       </div>
     </>
   );

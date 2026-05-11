@@ -99,7 +99,12 @@ export default function MobileMenu() {
 }, [pathname])
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : ""
-    return () => { document.body.style.overflow = "" }
+    if (open) document.body.classList.add("mobile-menu-open")
+    else document.body.classList.remove("mobile-menu-open")
+    return () => {
+      document.body.style.overflow = ""
+      document.body.classList.remove("mobile-menu-open")
+    }
   }, [open])
   useEffect(() => {
   // Sécurité : fermer le menu si la page se recharge
@@ -265,7 +270,7 @@ function LeagueRow({ name, country, logo, darkBg, isActive, onClick, emoji, logo
   return (
     <button onClick={onClick} className={`mobile-menu-league-item ${isActive ? "active" : ""}`}>
       <div className="mobile-menu-league-logo"
-        style={{ background: logoStyle?.background ?? (darkBg ? "#1a1f3c" : "var(--bg-muted)"), ...logoStyle }}>
+        style={{ background: logoStyle?.background ?? (darkBg ? "#1a1f3c" : "#f1f5f9"), ...logoStyle }}>
         {emoji ? (
           <span style={{ fontSize: 18 }}>{emoji}</span>
         ) : logo ? (
