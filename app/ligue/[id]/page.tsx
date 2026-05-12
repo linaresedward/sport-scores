@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import JsonLd, { buildSportsOrganizationLd } from "../../components/JsonLd";
 import { cookies } from "next/headers";
 import Image from "next/image";
 import ShowMoreResults from "./ShowMoreResults";
@@ -77,6 +79,21 @@ function groupByRound(events: Event[], leagueId?: string): { round: string; even
     }));
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  try {
+    const league = await getLeagueInfo(id)
+    if (league) {
+      const name = league.strLeague ?? ''
+      const country = translateCountry(league.strCountry ?? '')
+      const title = `${name}${country ? ` · ${country}` : ''}`
+      const desc = `Résultats, classement et matchs ${name}${country ? ` (${country})` : ''} en direct sur NyxScores.`
+      return { title, description: desc, openGraph: { title: `${title} | NyxScores`, description: desc } }
+    }
+  } catch { /* fallback */ }
+  return { title: 'Ligue', description: 'Résultats et classement de la ligue sur NyxScores.' }
+}
+
 export default async function LiguePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: rawId } = await params;
   const cookieStore = await cookies();
@@ -108,8 +125,15 @@ export default async function LiguePage({ params }: { params: Promise<{ id: stri
   const visibleGroups = pastGroups.slice(0, 2);
   const hiddenGroups  = pastGroups.slice(2);
 
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sport-scores.vercel.app'
+
   return (
     <div style={{ flex: 1, padding: "28px 36px", maxWidth: "860px" }}>
+      <JsonLd data={buildSportsOrganizationLd({
+        name: league.strLeague,
+        sport: league.strSport ?? 'Football',
+        url: `${SITE_URL}/ligue/${rawId}`,
+      })} />
 
       <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "28px" }}>
         <div style={{

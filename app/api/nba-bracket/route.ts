@@ -92,6 +92,16 @@ export async function GET() {
       roundsMap.get(round)?.push(s)
     })
 
+    // Marquer done=true si une équipe de la série apparaît dans le round suivant
+    const CONF_ROUND_ORDER = ["1/8 de finale", "Quarts de finale", "Demi-finales", "Finale"]
+    for (let ri = 0; ri < CONF_ROUND_ORDER.length - 1; ri++) {
+      const nextSeries = roundsMap.get(CONF_ROUND_ORDER[ri + 1]) ?? []
+      const teamsInNext = new Set(nextSeries.flatMap(s => [s.teamA, s.teamB]))
+      for (const s of (roundsMap.get(CONF_ROUND_ORDER[ri]) ?? [])) {
+        if (teamsInNext.has(s.teamA) || teamsInNext.has(s.teamB)) s.done = true
+      }
+    }
+
     // Convertir en tableau de rounds
     const rounds = ROUND_ORDER
       .map(name => ({ name, series: (roundsMap.get(name) ?? []).sort((a,b) => a.startDate.localeCompare(b.startDate)) }))

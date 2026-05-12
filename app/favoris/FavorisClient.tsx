@@ -7,6 +7,7 @@ import { useFavorites, FavoriteMatch } from "@/hooks/useFavorites";
 import { normalizeStatus } from "@/lib/highlightly";
 import { translateCountry as _translateCountry } from "@/lib/labels";
 import { useT } from "@/lib/i18n";
+import StandingsPanel from "@/app/components/StandingsPanel";
 
 // ─── Sons depuis les fichiers audio ──────────────────────
 function playSound(type: "goal" | "cancelled" | "halftime" | "fulltime") {
@@ -297,12 +298,7 @@ function MatchGroupCard({
             {_translateCountry(group.leagueCountry, lang)}
           </span>
         )}
-        {hasLive && (
-          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#ef4444" }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", animation: "livePulse 1.4s ease-in-out infinite" }} />
-            {lang === "fr" ? "EN DIRECT" : "LIVE"}
-          </span>
-        )}
+        <StandingsPanel leagueId={group.key} leagueName={group.leagueName} />
       </div>
 
       {/* Matchs */}

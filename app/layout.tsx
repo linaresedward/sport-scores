@@ -8,10 +8,30 @@ import './globals.css'
 
 const geist = Geist({ subsets: ['latin'] })
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sport-scores.vercel.app'
+
 export const metadata: Metadata = {
-  title: 'NyxScores — Résultats et scores en direct',
-  description: 'Scores en direct, résultats et classements football, hockey, basketball. Champions League, Ligue 1, Premier League et plus. NyxScores.',
-  viewport: 'width=device-width, initial-scale=1',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'NyxScores — Résultats et scores en direct',
+    template: '%s | NyxScores',
+  },
+  description: 'Scores en direct, résultats et classements football, hockey, basketball. Champions League, Ligue 1, Premier League et plus.',
+  keywords: ['scores en direct', 'résultats sport', 'NBA', 'NHL', 'football', 'Ligue 1', 'Premier League'],
+  openGraph: {
+    type: 'website',
+    siteName: 'NyxScores',
+    title: 'NyxScores — Résultats et scores en direct',
+    description: 'Scores en direct, résultats et classements football, hockey, basketball.',
+    locale: 'fr_FR',
+    url: SITE_URL,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'NyxScores — Résultats et scores en direct',
+    description: 'Scores en direct, résultats et classements football, hockey, basketball.',
+  },
+  robots: { index: true, follow: true },
 }
 
 export default function RootLayout({

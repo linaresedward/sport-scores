@@ -1,4 +1,11 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
+
+export const metadata: Metadata = {
+  title: 'Classements',
+  description: 'Classements football en direct — Ligue 1, Premier League, La Liga, Bundesliga, Serie A et toutes les grandes ligues.',
+  openGraph: { title: 'Classements | NyxScores', description: 'Classements des meilleures ligues de football.' },
+}
 
 const KEY = process.env.NEXT_PUBLIC_SPORTSDB_KEY
 

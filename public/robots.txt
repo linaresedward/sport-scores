@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Pages personnelles non indexées
+Disallow: /favoris
+
+Sitemap: https://sport-scores.vercel.app/sitemap.xml
