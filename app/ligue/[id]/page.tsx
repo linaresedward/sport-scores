@@ -85,7 +85,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const league = await getLeagueInfo(id)
     if (league) {
       const name = league.strLeague ?? ''
-      const country = translateCountry(league.strCountry ?? '')
+      const country = translateCountry(league.strCountry ?? '', 'fr')
       const title = `${name}${country ? ` · ${country}` : ''}`
       const desc = `Résultats, classement et matchs ${name}${country ? ` (${country})` : ''} en direct sur NyxScores.`
       return { title, description: desc, openGraph: { title: `${title} | NyxScores`, description: desc } }
