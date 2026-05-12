@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { HIGHLIGHTLY_TO_SPORTSDB } from '@/lib/labels'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sport-scores.vercel.app'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://nyxscores.vercel.app'
 
 const BASKETBALL_LEAGUES = ['NBA', 'NCAA', 'EuroLeague', 'LNB Pro A']
 const HOCKEY_LEAGUES     = ['NHL', 'KHL', 'AHL', 'IIHF']

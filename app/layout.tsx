@@ -8,7 +8,7 @@ import './globals.css'
 
 const geist = Geist({ subsets: ['latin'] })
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sport-scores.vercel.app'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://nyxscores.vercel.app'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

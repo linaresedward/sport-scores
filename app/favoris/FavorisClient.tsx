@@ -13,13 +13,16 @@ import StandingsPanel from "@/app/components/StandingsPanel";
 function playSound(type: "goal" | "cancelled" | "halftime" | "fulltime") {
   try {
     if (type === "fulltime") {
-      // Fin de match = mi-temps × 2, délai 1 seconde entre les deux
       new Audio("/sounds/mi-temps.mp3").play().catch(() => {})
       setTimeout(() => new Audio("/sounds/mi-temps.mp3").play().catch(() => {}), 1000)
+    } else if (type === "goal") {
+      // Son "but" joué en boucle pendant 3 secondes
+      const audio = new Audio("/sounds/but.mp3")
+      audio.loop = true
+      audio.play().catch(() => {})
+      setTimeout(() => { audio.pause(); audio.currentTime = 0 }, 3000)
     } else {
-      const file = type === "goal" ? "but.mp3"
-                 : type === "cancelled" ? "but-annule.mp3"
-                 : "mi-temps.mp3"
+      const file = type === "cancelled" ? "but-annule.mp3" : "mi-temps.mp3"
       new Audio(`/sounds/${file}`).play().catch(() => {})
     }
   } catch { /* audio indisponible */ }
